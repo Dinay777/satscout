@@ -24,10 +24,10 @@ const text = {
         tag: 'Coming Soon'
       },
       {
-        icon: '🌍',
-        title: 'Summer Programs Guide',
-        description: 'Explore top summer programs and get expert guidance on applications, essays, and selection — from someone who\'s been through it.',
-        tag: 'Consulting'
+        icon: '📊',
+        title: 'Progress Dashboard',
+        description: 'Track your score growth week by week. See today\'s tasks, your estimated score, and how far you\'ve come — all in one view.',
+        tag: 'Coming Soon'
       }
     ]
   },
@@ -54,10 +54,10 @@ const text = {
         tag: 'Скоро'
       },
       {
-        icon: '🌍',
-        title: 'Летние программы',
-        description: 'Узнай о лучших летних школах и получи помощь с подачей заявки, эссе и выбором программы.',
-        tag: 'Консалтинг'
+        icon: '📊',
+        title: 'Дашборд прогресса',
+        description: 'Следи за ростом баллов по неделям. Задачи на сегодня, прогноз результата и пройденный путь — всё в одном месте.',
+        tag: 'Скоро'
       }
     ]
   }

@@ -57,21 +57,39 @@ function HowItWorks({ language }) {
   return (
     <section className="how-it-works">
       <div className="how-it-works__inner">
-        <span className="section-label">{t.label}</span>
-        <h2 className="section-title">{t.title}</h2>
-        
-        <div className="steps">
-          {t.steps.map((step, index) => (
-            <div className={`step step--${step.color}`} key={index}>
-              <div className="step__number">{step.number}</div>
-              <div className="step__content">
-                <h3 className="step__title">{step.title}</h3>
-                <p className="step__description">{step.description}</p>
+
+        <div className="how-it-works__left">
+          <span className="section-label">{t.label}</span>
+          <h2 className="section-title">{t.title}</h2>
+
+          <div className="steps">
+            {t.steps.map((step, index) => (
+              <div className={`step step--${step.color}`} key={index}>
+                <div className="step__number">{step.number}</div>
+                <div className="step__content">
+                  <h3 className="step__title">{step.title}</h3>
+                  <p className="step__description">{step.description}</p>
+                </div>
               </div>
-              {index < t.steps.length - 1 && <div className="step__connector"></div>}
-            </div>
-          ))}
+            ))}
+          </div>
         </div>
+
+        <div className="how-it-works__right">
+          <div className="how-it-works__photo-wrap">
+            <img
+              src="https://images.unsplash.com/photo-1503676260728-1c00da094a0b?w=600&h=700&fit=crop&auto=format&q=80"
+              alt="Student studying at a desk"
+              className="how-it-works__photo"
+              loading="lazy"
+            />
+            <div className="how-it-works__photo-badge">
+              <span className="how-it-works__photo-badge-num">1400+</span>
+              <span className="how-it-works__photo-badge-label">Target score</span>
+            </div>
+          </div>
+        </div>
+
       </div>
     </section>
   );

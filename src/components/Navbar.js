@@ -4,20 +4,25 @@ const text = {
   en: {
     resources: 'Resources',
     aiBuddy: 'AI Study Buddy',
-    programs: 'Summer Programs',
     about: 'About',
+    dashboard: 'Dashboard',
+    signIn: 'Sign In',
+    signOut: 'Sign out',
   },
   ru: {
     resources: 'Ресурсы',
     aiBuddy: 'AI Помощник',
-    programs: 'Летние школы',
     about: 'О нас',
+    dashboard: 'Кабинет',
+    signIn: 'Войти',
+    signOut: 'Выйти',
   }
 };
 
-function Navbar({ currentPage, setCurrentPage, language, setLanguage }) {
+function Navbar({ currentPage, setCurrentPage, language, setLanguage, user, onSignOut }) {
   const [scrolled, setScrolled] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [userMenuOpen, setUserMenuOpen] = useState(false);
   const t = text[language];
 
   useEffect(() => {
@@ -26,11 +31,21 @@ function Navbar({ currentPage, setCurrentPage, language, setLanguage }) {
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
+  // Close user menu when clicking outside
+  useEffect(() => {
+    if (!userMenuOpen) return;
+    const close = () => setUserMenuOpen(false);
+    document.addEventListener('click', close);
+    return () => document.removeEventListener('click', close);
+  }, [userMenuOpen]);
+
   const navigate = (page) => {
     setCurrentPage(page);
     setMenuOpen(false);
     window.scrollTo(0, 0);
   };
+
+  const avatarLetter = user?.email?.[0]?.toUpperCase() ?? '?';
 
   return (
     <nav className={`navbar ${scrolled ? 'navbar--scrolled' : ''}`}>
@@ -41,40 +56,65 @@ function Navbar({ currentPage, setCurrentPage, language, setLanguage }) {
         </button>
 
         <div className={`navbar__links ${menuOpen ? 'navbar__links--open' : ''}`}>
-          <button 
+          <button
             className={`navbar__link ${currentPage === 'resources' ? 'navbar__link--active' : ''}`}
             onClick={() => navigate('resources')}
           >
             {t.resources}
           </button>
-          <button 
+          <button
             className={`navbar__link ${currentPage === 'ai-buddy' ? 'navbar__link--active' : ''}`}
             onClick={() => navigate('ai-buddy')}
           >
             {t.aiBuddy}
           </button>
-          <button 
-            className={`navbar__link ${currentPage === 'programs' ? 'navbar__link--active' : ''}`}
-            onClick={() => navigate('programs')}
-          >
-            {t.programs}
-          </button>
-          <button 
+          {/* programs tab hidden — will return for application season */}
+          <button
             className={`navbar__link ${currentPage === 'about' ? 'navbar__link--active' : ''}`}
             onClick={() => navigate('about')}
           >
             {t.about}
           </button>
-          
-          <button 
+
+          <button
             className="navbar__lang"
             onClick={() => setLanguage(language === 'en' ? 'ru' : 'en')}
           >
             {language === 'en' ? 'RU' : 'EN'}
           </button>
+
+          {/* Auth */}
+          {user ? (
+            <>
+              <button
+                className={`navbar__link ${currentPage === 'dashboard' ? 'navbar__link--active' : ''}`}
+                onClick={() => navigate('dashboard')}
+              >
+                {t.dashboard}
+              </button>
+              <div className="navbar__user" onClick={e => { e.stopPropagation(); setUserMenuOpen(o => !o); }}>
+                <div className="navbar__avatar">{avatarLetter}</div>
+                {userMenuOpen && (
+                  <div className="navbar__user-menu">
+                    <span className="navbar__user-email">{user.email}</span>
+                    <button className="navbar__user-signout" onClick={onSignOut}>
+                      {t.signOut}
+                    </button>
+                  </div>
+                )}
+              </div>
+            </>
+          ) : (
+            <button
+              className="navbar__signin"
+              onClick={() => navigate('ai-buddy')}
+            >
+              {t.signIn}
+            </button>
+          )}
         </div>
 
-        <button 
+        <button
           className={`navbar__burger ${menuOpen ? 'navbar__burger--open' : ''}`}
           onClick={() => setMenuOpen(!menuOpen)}
         >

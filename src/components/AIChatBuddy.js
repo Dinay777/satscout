@@ -63,29 +63,76 @@ function AIChatBuddy({ language }) {
   }, [messages]);
 
   const sendMessage = async (messageText) => {
-    const text = messageText || input.trim();
-    if (!text || isLoading) return;
+    const userText = messageText || input.trim();
+    if (!userText || isLoading) return;
 
-    const userMessage = { role: 'user', content: text };
-    setMessages(prev => [...prev, userMessage]);
+    const userMessage = { role: 'user', content: userText };
+    const updatedMessages = [...messages, userMessage];
+    setMessages(updatedMessages);
     setInput('');
     setIsLoading(true);
 
-    // Simulate AI response (placeholder until API is connected)
-    setTimeout(() => {
-      const responses = {
-        default: language === 'ru' 
-          ? '🔧 AI Study Buddy пока в режиме настройки. Скоро здесь будет полноценный AI-помощник, который сможет разбирать задачи, объяснять концепты и составлять планы подготовки к SAT!\n\nА пока — загляни в нашу библиотеку ресурсов, там собраны лучшие материалы для подготовки.'
-          : '🔧 AI Study Buddy is being set up. Soon you\'ll have a full AI tutor here that can break down problems, explain concepts, and build personalized SAT study plans!\n\nIn the meantime — check out our Resource Library for the best curated SAT prep materials.',
-      };
+    // Skip the welcome message (index 0) — it's UI-only, not part of the conversation history
+    const apiMessages = updatedMessages.slice(1).map(({ role, content }) => ({ role, content }));
 
-      const aiMessage = {
-        role: 'assistant',
-        content: responses.default,
-      };
-      setMessages(prev => [...prev, aiMessage]);
+    try {
+      const response = await fetch('/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ messages: apiMessages, language }),
+      });
+
+      if (!response.ok) throw new Error(`Server error ${response.status}`);
+
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
+      let aiContent = '';
+
+      setMessages(prev => [...prev, { role: 'assistant', content: '' }]);
       setIsLoading(false);
-    }, 1500);
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+        buffer = lines.pop();
+
+        for (const line of lines) {
+          if (!line.startsWith('data: ')) continue;
+          const data = line.slice(6).trim();
+          if (data === '[DONE]') continue;
+          try {
+            const parsed = JSON.parse(data);
+            if (parsed.error) throw new Error(parsed.error);
+            if (parsed.text) {
+              aiContent += parsed.text;
+              const snapshot = aiContent;
+              setMessages(prev => [
+                ...prev.slice(0, -1),
+                { role: 'assistant', content: snapshot },
+              ]);
+            }
+          } catch (e) {
+            if (e.message && !e.message.includes('JSON')) throw e;
+          }
+        }
+      }
+    } catch (error) {
+      setIsLoading(false);
+      const errorMsg = language === 'ru'
+        ? 'Извини, что-то пошло не так. Попробуй снова.'
+        : 'Sorry, something went wrong. Please try again.';
+      setMessages(prev => {
+        const last = prev[prev.length - 1];
+        if (last?.role === 'assistant' && last?.content === '') {
+          return [...prev.slice(0, -1), { role: 'assistant', content: errorMsg }];
+        }
+        return [...prev, { role: 'assistant', content: errorMsg }];
+      });
+    }
   };
 
   const handleKeyDown = (e) => {
