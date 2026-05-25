@@ -32,6 +32,10 @@ const text = {
       return items;
     },
     streakLabel: 'day streak',
+    noPlanTitle: 'No study plan yet',
+    noPlanDesc: 'Chat with AI Buddy to build your personalized week-by-week plan based on your goals and timeline.',
+    noPlanBtn: 'Create my study plan →',
+    planSummaryLabel: 'Your plan',
   },
   ru: {
     daysLeft: 'дней до теста',
@@ -56,6 +60,10 @@ const text = {
       return items;
     },
     streakLabel: 'день подряд',
+    noPlanTitle: 'Плана подготовки пока нет',
+    noPlanDesc: 'Поговори с AI Помощником — он составит персональный план по неделям с учётом твоей цели и сроков.',
+    noPlanBtn: 'Создать мой план →',
+    planSummaryLabel: 'Твой план',
   },
 };
 
@@ -66,13 +74,26 @@ const colorMap = {
   purple: { bg: 'rgba(139,92,246,0.08)', bar: '#8b5cf6' },
 };
 
+const todayKey = () => new Date().toISOString().slice(0, 10); // "2026-05-25"
+
 function Dashboard({ user, profile, language, setCurrentPage }) {
   const t = text[language] || text.en;
-  const tasks = getTodaysTasks(profile, language);
-  const [done, setDone] = useState({});
+  const tasks = (profile.plan_created && Array.isArray(profile.daily_tasks) && profile.daily_tasks.length > 0)
+    ? profile.daily_tasks
+    : getTodaysTasks(profile, language);
+
+  const storageKey = `tasks_done_${user?.id}`;
+
+  const [done, setDone] = useState(() => {
+    try {
+      const saved = JSON.parse(localStorage.getItem(storageKey));
+      if (saved?.date === todayKey()) return saved.done;
+    } catch (_) {}
+    return {};
+  });
 
   const days       = getDaysUntilTest(profile.exam_timeframe);
-  const currentNum = getCurrentScoreNum(profile.current_score);
+  const currentNum = profile.current_score_actual ?? getCurrentScoreNum(profile.current_score);
   const pct        = getProgressPercent(currentNum, profile.target_score);
   const greeting   = getGreeting(language);
   const week       = getWeekNumber(profile.created_at);
@@ -80,7 +101,11 @@ function Dashboard({ user, profile, language, setCurrentPage }) {
 
   const emailName  = user?.email?.split('@')[0] ?? '';
 
-  const toggleTask = (id) => setDone(prev => ({ ...prev, [id]: !prev[id] }));
+  const toggleTask = (id) => setDone(prev => {
+    const next = { ...prev, [id]: !prev[id] };
+    try { localStorage.setItem(storageKey, JSON.stringify({ date: todayKey(), done: next })); } catch (_) {}
+    return next;
+  });
 
   return (
     <div className="dashboard">
@@ -93,7 +118,7 @@ function Dashboard({ user, profile, language, setCurrentPage }) {
               {greeting}, <span className="dashboard__name">{emailName}</span>
             </h1>
             <p className="dashboard__subtitle">
-              {t.weekLabel} {week} · {doneCount}/{tasks.length} {t.completed}
+              {t.weekLabel} {week}{profile.plan_created ? ` · ${doneCount}/${tasks.length} ${t.completed}` : ''}
             </p>
           </div>
           <div className="dashboard__days-badge">
@@ -142,39 +167,56 @@ function Dashboard({ user, profile, language, setCurrentPage }) {
               </div>
             </div>
 
-            {/* Today's tasks */}
-            <div className="dash-card">
-              <span className="dash-card__label">{t.todayLabel}</span>
-
-              {doneCount === tasks.length ? (
-                <div className="dash-all-done">{t.allDone}</div>
-              ) : (
-                <div className="task-list">
-                  {tasks.map(task => {
-                    const isDone = !!done[task.id];
-                    const c = colorMap[task.color] || colorMap.blue;
-                    return (
-                      <div
-                        key={task.id}
-                        className={`task-item ${isDone ? 'task-item--done' : ''}`}
-                        style={{ '--task-bar': c.bar, '--task-bg': c.bg }}
-                        onClick={() => toggleTask(task.id)}
-                      >
-                        <div className="task-item__bar" />
-                        <div className="task-item__check">
-                          {isDone ? '✓' : ''}
-                        </div>
-                        <div className="task-item__body">
-                          <span className="task-item__title">{task.title}</span>
-                          <span className="task-item__action">{task.action}</span>
-                        </div>
-                        <span className="task-item__duration">{task.duration}</span>
-                      </div>
-                    );
-                  })}
+            {/* Today's tasks or no-plan CTA */}
+            {!profile.plan_created ? (
+              <div className="dash-card dash-no-plan">
+                <span className="dash-card__label">{t.todayLabel}</span>
+                <div className="dash-no-plan__body">
+                  <div className="dash-no-plan__icon">🗓️</div>
+                  <h3 className="dash-no-plan__title">{t.noPlanTitle}</h3>
+                  <p className="dash-no-plan__desc">{t.noPlanDesc}</p>
+                  <button
+                    className="dash-no-plan__btn"
+                    onClick={() => setCurrentPage('ai-buddy')}
+                  >
+                    {t.noPlanBtn}
+                  </button>
                 </div>
-              )}
-            </div>
+              </div>
+            ) : (
+              <div className="dash-card">
+                <span className="dash-card__label">{t.todayLabel}</span>
+
+                {doneCount === tasks.length ? (
+                  <div className="dash-all-done">{t.allDone}</div>
+                ) : (
+                  <div className="task-list">
+                    {tasks.map(task => {
+                      const isDone = !!done[task.id];
+                      const c = colorMap[task.color] || colorMap.blue;
+                      return (
+                        <div
+                          key={task.id}
+                          className={`task-item ${isDone ? 'task-item--done' : ''}`}
+                          style={{ '--task-bar': c.bar, '--task-bg': c.bg }}
+                          onClick={() => toggleTask(task.id)}
+                        >
+                          <div className="task-item__bar" />
+                          <div className="task-item__check">
+                            {isDone ? '✓' : ''}
+                          </div>
+                          <div className="task-item__body">
+                            <span className="task-item__title">{task.title}</span>
+                            <span className="task-item__action">{task.action}</span>
+                          </div>
+                          <span className="task-item__duration">{task.duration}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* AI Buddy CTA */}
             <button
@@ -193,18 +235,32 @@ function Dashboard({ user, profile, language, setCurrentPage }) {
           {/* ── Right column ── */}
           <div className="dashboard__right">
 
-            {/* Weekly focus */}
-            <div className="dash-card">
-              <span className="dash-card__label">{t.weeklyTitle}</span>
-              <ul className="weekly-list">
-                {t.weeklyItems(profile.weak_sections).map((item, i) => (
-                  <li key={i} className="weekly-list__item">
-                    <span className="weekly-list__dot" />
-                    {item}
-                  </li>
-                ))}
-              </ul>
-            </div>
+            {/* Plan summary (if exists) or weekly focus */}
+            {profile.plan_summary ? (
+              <div className="dash-card">
+                <span className="dash-card__label">{t.planSummaryLabel}</span>
+                <p className="dash-plan-summary">{profile.plan_summary}</p>
+                <button
+                  className="dash-resources-btn"
+                  style={{ marginTop: '12px' }}
+                  onClick={() => setCurrentPage('ai-buddy')}
+                >
+                  {language === 'ru' ? 'Скорректировать план →' : 'Adjust plan →'}
+                </button>
+              </div>
+            ) : (
+              <div className="dash-card">
+                <span className="dash-card__label">{t.weeklyTitle}</span>
+                <ul className="weekly-list">
+                  {t.weeklyItems(profile.weak_sections).map((item, i) => (
+                    <li key={i} className="weekly-list__item">
+                      <span className="weekly-list__dot" />
+                      {item}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
 
             {/* Quick links */}
             <div className="dash-card">

@@ -18,7 +18,7 @@ const text = {
       {
         icon: '🌍',
         title: 'Accessibility first',
-        description: 'Students in Almaty, Tashkent, or Bishkek deserve the same prep quality as students in New York. That\'s why SATScout is free and bilingual.',
+        description: 'Students in Almaty, Tashkent, or Bishkek deserve the same prep quality as students in New York. That\'s why SATScout is free and accessible to anyone.',
       },
       {
         icon: '🤝',
@@ -30,7 +30,7 @@ const text = {
     contactTitle: 'Questions or suggestions?',
     contactSubtitle: 'Reach out directly — I read every message.',
     contactEmail: 'Email us',
-    contactEmailAddr: 'hello@satscout.com',
+    contactEmailAddr: 'dinaytaalaibekova@gmail.com',
     builtWith: 'Built with React. Made with ♥ in Houston, TX.',
   },
   ru: {
@@ -50,7 +50,7 @@ const text = {
       {
         icon: '🌍',
         title: 'Доступность прежде всего',
-        description: 'Студенты в Алматы, Ташкенте или Бишкеке заслуживают той же качественной подготовки, что и студенты в Нью-Йорке. Поэтому SATScout бесплатный и двуязычный.',
+        description: 'Студенты в Алматы, Ташкенте или Бишкеке заслуживают той же качественной подготовки, что и студенты в Нью-Йорке. Поэтому SATScout бесплатный и доступен каждому.',
       },
       {
         icon: '🤝',
@@ -62,7 +62,7 @@ const text = {
     contactTitle: 'Есть вопросы или предложения?',
     contactSubtitle: 'Напиши напрямую — я читаю каждое сообщение.',
     contactEmail: 'Написать нам',
-    contactEmailAddr: 'hello@satscout.com',
+    contactEmailAddr: 'dinaytaalaibekova@gmail.com',
     builtWith: 'Сделано на React. Создано с ♥ в Хьюстоне, TX.',
   },
 };

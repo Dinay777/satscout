@@ -38,7 +38,6 @@ function Footer({ language, setCurrentPage }) {
         <div className="footer__links">
           <button onClick={() => setCurrentPage('resources')}>{t.resources}</button>
           <button onClick={() => setCurrentPage('ai-buddy')}>{t.aiBuddy}</button>
-          <button onClick={() => setCurrentPage('programs')}>{t.programs}</button>
           <button onClick={() => setCurrentPage('about')}>{t.about}</button>
         </div>
       </div>

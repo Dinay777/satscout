@@ -138,8 +138,16 @@ function App() {
         <ResourceLibrary language={language} />
       )}
 
-      {currentPage === 'ai-buddy' && (
-        <AIChatBuddy language={language} />
+      {/* Keep mounted to preserve chat history — hide with CSS when not active */}
+      {user && (
+        <div style={{ display: currentPage === 'ai-buddy' ? 'contents' : 'none' }}>
+          <AIChatBuddy
+            language={language}
+            user={user}
+            profile={profile}
+            onProfileUpdate={(updated) => setProfile(updated)}
+          />
+        </div>
       )}
 
       {currentPage === 'dashboard' && profile && (

@@ -1,4 +1,5 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
+import { supabase } from '../lib/supabase';
 
 const text = {
   en: {
@@ -6,7 +7,6 @@ const text = {
     subtitle: 'Ask me anything about SAT prep — strategies, problem breakdowns, study plans, or resource recommendations.',
     placeholder: 'Ask about SAT strategies, problem solving, study plans...',
     send: '→',
-    thinking: 'Thinking...',
     welcome: 'Hey! 👋 I\'m your SAT Study Buddy. I can help you with:\n\n• **Explain SAT concepts** — ask me about any math topic, reading strategy, or grammar rule\n• **Break down problems** — paste a question and I\'ll walk you through it step by step\n• **Build a study plan** — tell me your test date, current score, and goal\n• **Recommend resources** — I know every resource in our library\n\nWhat would you like help with?',
     welcomeRu: 'Привет! 👋 Я твой AI помощник для SAT. Я могу:\n\n• **Объяснить концепты SAT** — спроси о любой теме\n• **Разобрать задачу** — пришли вопрос и я разберу его пошагово\n• **Составить план** — скажи дату экзамена, текущий и целевой балл\n• **Порекомендовать ресурсы** — я знаю всю нашу библиотеку\n\nЧем помочь?',
     suggestions: [
@@ -23,45 +23,71 @@ const text = {
     ],
     disclaimer: 'AI can make mistakes. Verify important information.',
     disclaimerRu: 'AI может ошибаться. Проверяйте важную информацию.',
+    loadingHistory: 'Loading your conversation history...',
+    loadingHistoryRu: 'Загружаю историю переписки...',
   }
 };
 
+// How many past messages to load and send to AI (keeps context manageable)
+const HISTORY_LIMIT = 40;
+
 function formatMessage(text) {
-  // Simple markdown-like formatting
   let formatted = text;
-  // Bold
   formatted = formatted.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
-  // Bullet points
   formatted = formatted.replace(/^• /gm, '<span class="chat-bullet">•</span> ');
-  // Line breaks
   formatted = formatted.replace(/\n/g, '<br/>');
   return formatted;
 }
 
-function AIChatBuddy({ language }) {
+const PLAN_UPDATE_RE = /\[\[PLAN_UPDATE\]\][\s\S]*?\[\[\/PLAN_UPDATE\]\]/g;
+
+function AIChatBuddy({ language, user, profile, onProfileUpdate }) {
   const t = text.en;
-  const [messages, setMessages] = useState([
-    {
-      role: 'assistant',
-      content: language === 'ru' ? t.welcomeRu : t.welcome,
-    }
-  ]);
+  const welcomeMessage = { role: 'assistant', content: language === 'ru' ? t.welcomeRu : t.welcome };
+
+  const [messages, setMessages] = useState([welcomeMessage]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const messagesEndRef = useRef(null);
-  const messagesContainerRef = useRef(null);
-  const inputRef = useRef(null);
+  const [isStreaming, setIsStreaming] = useState(false);
+  const [historyLoading, setHistoryLoading] = useState(!!user);
 
-  const scrollToBottom = () => {
+  const messagesContainerRef = useRef(null);
+
+  // ── Load history from Supabase on mount ───────────────────────────────────
+  useEffect(() => {
+    if (!user) return;
+
+    supabase
+      .from('chat_messages')
+      .select('role, content')
+      .eq('user_id', user.id)
+      .order('created_at', { ascending: false })
+      .limit(HISTORY_LIMIT)
+      .then(({ data, error }) => {
+        if (!error && data && data.length > 0) {
+          // Reverse so oldest first, prepend welcome message
+          const history = data.reverse();
+          setMessages([welcomeMessage, ...history]);
+        }
+        setHistoryLoading(false);
+      });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id]);
+
+  // ── Auto-scroll ───────────────────────────────────────────────────────────
+  useEffect(() => {
     if (messagesContainerRef.current) {
       messagesContainerRef.current.scrollTop = messagesContainerRef.current.scrollHeight;
     }
-  };
-
-  useEffect(() => {
-    scrollToBottom();
   }, [messages]);
 
+  // ── Save a message to Supabase ────────────────────────────────────────────
+  const saveMessage = useCallback(async (role, content) => {
+    if (!user) return;
+    await supabase.from('chat_messages').insert({ user_id: user.id, role, content });
+  }, [user]);
+
+  // ── Send message ──────────────────────────────────────────────────────────
   const sendMessage = async (messageText) => {
     const userText = messageText || input.trim();
     if (!userText || isLoading) return;
@@ -72,14 +98,18 @@ function AIChatBuddy({ language }) {
     setInput('');
     setIsLoading(true);
 
-    // Skip the welcome message (index 0) — it's UI-only, not part of the conversation history
+    // Save user message to Supabase immediately
+    saveMessage('user', userText);
+
+    // Skip welcome message (index 0) — UI only, not sent to AI
     const apiMessages = updatedMessages.slice(1).map(({ role, content }) => ({ role, content }));
 
     try {
-      const response = await fetch('/api/chat', {
+      const API_BASE = process.env.REACT_APP_API_URL || '';
+      const response = await fetch(`${API_BASE}/api/chat`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ messages: apiMessages, language }),
+        body: JSON.stringify({ messages: apiMessages, language, profile }),
       });
 
       if (!response.ok) throw new Error(`Server error ${response.status}`);
@@ -91,6 +121,7 @@ function AIChatBuddy({ language }) {
 
       setMessages(prev => [...prev, { role: 'assistant', content: '' }]);
       setIsLoading(false);
+      setIsStreaming(true);
 
       while (true) {
         const { done, value } = await reader.read();
@@ -103,16 +134,34 @@ function AIChatBuddy({ language }) {
         for (const line of lines) {
           if (!line.startsWith('data: ')) continue;
           const data = line.slice(6).trim();
-          if (data === '[DONE]') continue;
+          if (data === '[DONE]') {
+            setIsStreaming(false);
+            const finalText = aiContent.replace(PLAN_UPDATE_RE, '').trim();
+            if (finalText) saveMessage('assistant', finalText);
+            continue;
+          }
           try {
             const parsed = JSON.parse(data);
             if (parsed.error) throw new Error(parsed.error);
+
+            if (parsed.planUpdate && user && onProfileUpdate) {
+              supabase
+                .from('profiles')
+                .update(parsed.planUpdate)
+                .eq('user_id', user.id)
+                .select()
+                .single()
+                .then(({ data: updated }) => {
+                  if (updated) onProfileUpdate(updated);
+                });
+            }
+
             if (parsed.text) {
               aiContent += parsed.text;
-              const snapshot = aiContent;
+              const displayText = aiContent.replace(PLAN_UPDATE_RE, '').trim();
               setMessages(prev => [
                 ...prev.slice(0, -1),
-                { role: 'assistant', content: snapshot },
+                { role: 'assistant', content: displayText },
               ]);
             }
           } catch (e) {
@@ -122,6 +171,7 @@ function AIChatBuddy({ language }) {
       }
     } catch (error) {
       setIsLoading(false);
+      setIsStreaming(false);
       const errorMsg = language === 'ru'
         ? 'Извини, что-то пошло не так. Попробуй снова.'
         : 'Sorry, something went wrong. Please try again.';
@@ -142,10 +192,6 @@ function AIChatBuddy({ language }) {
     }
   };
 
-  const handleSuggestion = (suggestion) => {
-    sendMessage(suggestion);
-  };
-
   const suggestions = language === 'ru' ? t.suggestionsRu : t.suggestions;
   const showSuggestions = messages.length <= 1;
 
@@ -161,7 +207,7 @@ function AIChatBuddy({ language }) {
               <p className="chat-sidebar__subtitle">{t.subtitle}</p>
             </div>
           </div>
-          
+
           <div className="chat-sidebar__capabilities">
             <div className="capability">
               <span className="capability__icon">📝</span>
@@ -187,8 +233,8 @@ function AIChatBuddy({ language }) {
             <div className="capability">
               <span className="capability__icon">🌍</span>
               <div>
-                <h4 className="capability__title">{language === 'ru' ? 'Два языка' : 'Bilingual'}</h4>
-                <p className="capability__desc">{language === 'ru' ? 'Отвечаю на русском и английском' : 'Ask in English or Russian'}</p>
+                <h4 className="capability__title">{language === 'ru' ? 'Любой язык' : 'Any Language'}</h4>
+                <p className="capability__desc">{language === 'ru' ? 'Пиши на любом языке — отвечу на нём же' : 'Ask in any language — I\'ll answer in the same'}</p>
               </div>
             </div>
           </div>
@@ -197,46 +243,58 @@ function AIChatBuddy({ language }) {
         {/* Chat Area */}
         <div className="chat-main">
           <div className="chat-messages" ref={messagesContainerRef}>
-            {messages.map((msg, index) => (
-              <div className={`chat-message chat-message--${msg.role}`} key={index}>
-                {msg.role === 'assistant' && (
-                  <div className="chat-message__avatar">🤖</div>
-                )}
-                <div className="chat-message__bubble">
-                  <div 
-                    className="chat-message__text"
-                    dangerouslySetInnerHTML={{ __html: formatMessage(msg.content) }}
-                  />
-                </div>
+
+            {historyLoading ? (
+              <div className="chat-history-loading">
+                <div className="chat-typing"><span></span><span></span><span></span></div>
+                <p>{language === 'ru' ? t.loadingHistoryRu : t.loadingHistory}</p>
               </div>
-            ))}
-            
-            {isLoading && (
-              <div className="chat-message chat-message--assistant">
-                <div className="chat-message__avatar">🤖</div>
-                <div className="chat-message__bubble">
-                  <div className="chat-typing">
-                    <span></span><span></span><span></span>
+            ) : (
+              <>
+                {messages.map((msg, index) => {
+                  const isLastAssistant = isStreaming && index === messages.length - 1 && msg.role === 'assistant';
+                  return (
+                    <div className={`chat-message chat-message--${msg.role}`} key={index}>
+                      {msg.role === 'assistant' && (
+                        <div className="chat-message__avatar">🤖</div>
+                      )}
+                      <div className={`chat-message__bubble${isLastAssistant ? ' chat-message__bubble--streaming' : ''}`}>
+                        <div
+                          className="chat-message__text"
+                          dangerouslySetInnerHTML={{ __html: formatMessage(msg.content) }}
+                        />
+                        {isLastAssistant && <span className="chat-cursor" />}
+                      </div>
+                    </div>
+                  );
+                })}
+
+                {isLoading && (
+                  <div className="chat-message chat-message--assistant">
+                    <div className="chat-message__avatar">🤖</div>
+                    <div className="chat-message__bubble">
+                      <div className="chat-typing">
+                        <span></span><span></span><span></span>
+                      </div>
+                    </div>
                   </div>
-                </div>
-              </div>
-            )}
+                )}
 
-            {showSuggestions && (
-              <div className="chat-suggestions">
-                {suggestions.map((s, i) => (
-                  <button 
-                    className="chat-suggestion" 
-                    key={i}
-                    onClick={() => handleSuggestion(s)}
-                  >
-                    {s}
-                  </button>
-                ))}
-              </div>
+                {showSuggestions && (
+                  <div className="chat-suggestions">
+                    {suggestions.map((s, i) => (
+                      <button
+                        className="chat-suggestion"
+                        key={i}
+                        onClick={() => sendMessage(s)}
+                      >
+                        {s}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </>
             )}
-
-            <div ref={messagesEndRef} />
           </div>
 
           <div className="chat-input-area">
@@ -245,18 +303,18 @@ function AIChatBuddy({ language }) {
             </p>
             <div className="chat-input-wrapper">
               <textarea
-                ref={inputRef}
                 className="chat-input"
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={handleKeyDown}
                 placeholder={t.placeholder}
                 rows={1}
+                disabled={historyLoading}
               />
-              <button 
+              <button
                 className={`chat-send ${input.trim() ? 'chat-send--active' : ''}`}
                 onClick={() => sendMessage()}
-                disabled={!input.trim() || isLoading}
+                disabled={!input.trim() || isLoading || historyLoading}
               >
                 {t.send}
               </button>
