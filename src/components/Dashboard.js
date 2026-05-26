@@ -1,281 +1,372 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
+import { supabase } from '../lib/supabase';
 import {
   getDaysUntilTest,
   getCurrentScoreNum,
   getProgressPercent,
   getGreeting,
   getWeekNumber,
-  getTodaysTasks,
 } from '../lib/studyPlan';
 
-const text = {
-  en: {
-    daysLeft: 'days to test',
-    scoreGoal: 'Score Goal',
-    current: 'Current',
-    target: 'Target',
-    notTaken: 'TBD',
-    todayLabel: "Today's Tasks",
-    weekLabel: 'Week',
-    completed: 'completed',
-    allDone: "You're done for today! 🎉",
-    aiBtnLabel: 'Ask AI Buddy',
-    aiBtnSub: 'Explain today\'s material, solve problems, adjust your plan',
-    resourcesLabel: 'Resource Library',
-    weeklyTitle: 'This week\'s focus',
-    weeklyItems: (sections) => {
-      const items = [];
-      if (!sections || sections.includes('math'))    items.push('Khan Academy Math units');
-      if (!sections || sections.includes('reading')) items.push('Erica Meltzer chapters');
-      items.push('1 timed practice section');
-      items.push('Review all mistakes');
-      return items;
-    },
-    streakLabel: 'day streak',
-    noPlanTitle: 'No study plan yet',
-    noPlanDesc: 'Chat with AI Buddy to build your personalized week-by-week plan based on your goals and timeline.',
-    noPlanBtn: 'Create my study plan →',
-    planSummaryLabel: 'Your plan',
-  },
-  ru: {
-    daysLeft: 'дней до теста',
-    scoreGoal: 'Цель по баллу',
-    current: 'Сейчас',
-    target: 'Цель',
-    notTaken: 'Нет данных',
-    todayLabel: 'Задачи на сегодня',
-    weekLabel: 'Неделя',
-    completed: 'выполнено',
-    allDone: 'На сегодня всё! 🎉',
-    aiBtnLabel: 'Спросить AI Помощника',
-    aiBtnSub: 'Объяснит материал, решит задачу, скорректирует план',
-    resourcesLabel: 'Библиотека ресурсов',
-    weeklyTitle: 'Фокус этой недели',
-    weeklyItems: (sections) => {
-      const items = [];
-      if (!sections || sections.includes('math'))    items.push('Разделы Khan Academy по математике');
-      if (!sections || sections.includes('reading')) items.push('Главы Erica Meltzer');
-      items.push('1 раздел теста на время');
-      items.push('Разбор всех ошибок');
-      return items;
-    },
-    streakLabel: 'день подряд',
-    noPlanTitle: 'Плана подготовки пока нет',
-    noPlanDesc: 'Поговори с AI Помощником — он составит персональный план по неделям с учётом твоей цели и сроков.',
-    noPlanBtn: 'Создать мой план →',
-    planSummaryLabel: 'Твой план',
-  },
+const TYPE_META = {
+  video:    { icon: '🎬', label: 'Video',    color: 'blue'   },
+  read:     { icon: '📖', label: 'Read',     color: 'orange' },
+  practice: { icon: '✏️', label: 'Practice', color: 'green'  },
 };
 
-const colorMap = {
-  blue:   { bg: 'rgba(59,130,246,0.08)',  bar: '#3b82f6' },
-  green:  { bg: 'rgba(16,185,129,0.08)',  bar: '#10b981' },
-  teal:   { bg: 'rgba(6,182,212,0.08)',   bar: '#06b6d4' },
-  purple: { bg: 'rgba(139,92,246,0.08)', bar: '#8b5cf6' },
+const WEAK_SPOT_MAP = {
+  math: [
+    { name: 'Algebra & Functions' },
+    { name: 'Data Analysis' },
+    { name: 'Advanced Math' },
+  ],
+  reading: [
+    { name: 'Standard English Conventions' },
+    { name: 'Reading Comprehension' },
+    { name: 'Vocabulary in Context' },
+  ],
 };
 
-const todayKey = () => new Date().toISOString().slice(0, 10); // "2026-05-25"
+function getDayNumber(planStartDate) {
+  if (!planStartDate) return 1;
+  const diff = Date.now() - new Date(planStartDate).getTime();
+  return Math.max(1, Math.floor(diff / 86400000) + 1);
+}
 
-function Dashboard({ user, profile, language, setCurrentPage }) {
-  const t = text[language] || text.en;
-  const tasks = (profile.plan_created && Array.isArray(profile.daily_tasks) && profile.daily_tasks.length > 0)
-    ? profile.daily_tasks
-    : getTodaysTasks(profile, language);
+function Dashboard({ user, profile, language, setCurrentPage, onProfileUpdate }) {
+  const [tasks, setTasks]           = useState([]);
+  const [weekData, setWeekData]     = useState([]);
+  const [tasksLoading, setTasksLoading] = useState(true);
+  const [confetti, setConfetti]     = useState(false);
+  const [rebuilding, setRebuilding] = useState(false);
 
-  const storageKey = `tasks_done_${user?.id}`;
-
-  const [done, setDone] = useState(() => {
-    try {
-      const saved = JSON.parse(localStorage.getItem(storageKey));
-      if (saved?.date === todayKey()) return saved.done;
-    } catch (_) {}
-    return {};
-  });
-
-  const days       = getDaysUntilTest(profile.exam_timeframe, profile.created_at);
+  const greeting  = getGreeting(language);
+  const emailName = user?.email?.split('@')[0] ?? '';
+  const dayNum    = getDayNumber(profile.plan_start_date);
+  const totalDays = getDaysUntilTest(profile.exam_timeframe, profile.created_at);
   const currentNum = profile.current_score_actual ?? getCurrentScoreNum(profile.current_score);
   const pct        = getProgressPercent(currentNum, profile.target_score);
-  const greeting   = getGreeting(language);
   const week       = getWeekNumber(profile.created_at);
-  const doneCount  = Object.values(done).filter(Boolean).length;
+  const streak     = profile.current_streak ?? 0;
 
-  const emailName  = user?.email?.split('@')[0] ?? '';
+  const ru = language === 'ru';
 
-  const toggleTask = (id) => setDone(prev => {
-    const next = { ...prev, [id]: !prev[id] };
-    try { localStorage.setItem(storageKey, JSON.stringify({ date: todayKey(), done: next })); } catch (_) {}
-    return next;
-  });
+  // ── Fetch today's tasks ───────────────────────────────────────────────────
+  useEffect(() => {
+    if (!profile.plan_created) { setTasksLoading(false); return; }
 
-  return (
-    <div className="dashboard">
-      <div className="dashboard__inner">
+    Promise.all([
+      supabase.from('user_tasks').select('*').eq('user_id', user.id).eq('day_number', dayNum),
+      supabase.from('user_tasks').select('day_number, completed').eq('user_id', user.id)
+        .gte('day_number', dayNum - 3).lte('day_number', dayNum + 6),
+    ]).then(([todayRes, weekRes]) => {
+      setTasks(todayRes.data ?? []);
+      setWeekData(weekRes.data ?? []);
+      setTasksLoading(false);
+    });
+  }, [user.id, profile.plan_created, dayNum]);
 
-        {/* ── Header ── */}
-        <div className="dashboard__header">
-          <div>
-            <h1 className="dashboard__greeting">
-              {greeting}, <span className="dashboard__name">{emailName}</span>
-            </h1>
-            <p className="dashboard__subtitle">
-              {t.weekLabel} {week}{profile.plan_created ? ` · ${doneCount}/${tasks.length} ${t.completed}` : ''}
+  // ── Mark task complete ────────────────────────────────────────────────────
+  const markComplete = useCallback(async (taskId) => {
+    const now = new Date().toISOString();
+    await supabase.from('user_tasks')
+      .update({ completed: true, completed_at: now })
+      .eq('id', taskId);
+
+    setTasks(prev => prev.map(t => t.id === taskId ? { ...t, completed: true } : t));
+    setConfetti(true);
+    setTimeout(() => setConfetti(false), 1800);
+
+    // Update streak
+    const today = new Date().toISOString().slice(0, 10);
+    if (profile.last_active_date !== today) {
+      const yesterday = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
+      const newStreak = profile.last_active_date === yesterday ? streak + 1 : 1;
+      const longest = Math.max(newStreak, profile.longest_streak ?? 0);
+      await supabase.from('profiles').update({
+        current_streak: newStreak,
+        longest_streak: longest,
+        last_active_date: today,
+      }).eq('user_id', user.id);
+      if (onProfileUpdate) onProfileUpdate({ ...profile, current_streak: newStreak, last_active_date: today });
+    }
+  }, [profile, streak, user.id, onProfileUpdate]);
+
+  // ── Unmark task ───────────────────────────────────────────────────────────
+  const unmarkComplete = useCallback(async (taskId) => {
+    await supabase.from('user_tasks')
+      .update({ completed: false, completed_at: null })
+      .eq('id', taskId);
+    setTasks(prev => prev.map(t => t.id === taskId ? { ...t, completed: false } : t));
+  }, []);
+
+  // ── Rebuild plan ──────────────────────────────────────────────────────────
+  const rebuildPlan = async () => {
+    if (!window.confirm(ru ? 'Удалить текущий план и начать заново?' : 'Delete current plan and start over?')) return;
+    setRebuilding(true);
+    await supabase.from('user_tasks').delete().eq('user_id', user.id);
+    await supabase.from('profiles').update({
+      plan_created: false,
+      plan_summary: null,
+      plan_start_date: null,
+      daily_tasks: null,
+    }).eq('user_id', user.id);
+    if (onProfileUpdate) onProfileUpdate({ ...profile, plan_created: false, plan_summary: null, plan_start_date: null });
+    setRebuilding(false);
+    setCurrentPage('ai-buddy');
+  };
+
+  // ── Empty state ───────────────────────────────────────────────────────────
+  if (!profile.plan_created) {
+    return (
+      <div className="dashboard">
+        <div className="dashboard-empty">
+          <div className="dashboard-empty__card">
+            <div className="dashboard-empty__icon">📋</div>
+            <h2 className="dashboard-empty__title">
+              {ru ? 'Давай составим твой план' : "Let's build your study plan"}
+            </h2>
+            <p className="dashboard-empty__desc">
+              {ru
+                ? 'Задам тебе пару вопросов чтобы создать план который реально впишется в твою жизнь'
+                : "I'll ask you a few questions to create a plan that actually fits your life"}
             </p>
-          </div>
-          <div className="dashboard__days-badge">
-            <span className="dashboard__days-num">{days}</span>
-            <span className="dashboard__days-label">{t.daysLeft}</span>
-          </div>
-        </div>
-
-        <div className="dashboard__grid">
-
-          {/* ── Left column ── */}
-          <div className="dashboard__left">
-
-            {/* Score card */}
-            <div className="dash-card dash-card--score">
-              <span className="dash-card__label">{t.scoreGoal}</span>
-              <div className="score-widget">
-                <div className="score-widget__nums">
-                  <div className="score-widget__item">
-                    <span className="score-widget__sub">{t.current}</span>
-                    <span className="score-widget__num score-widget__num--current">
-                      {currentNum ?? t.notTaken}
-                    </span>
-                  </div>
-                  <div className="score-widget__arrow">→</div>
-                  <div className="score-widget__item">
-                    <span className="score-widget__sub">{t.target}</span>
-                    <span className="score-widget__num score-widget__num--target">
-                      {profile.target_score}
-                    </span>
-                  </div>
-                </div>
-                <div className="score-widget__bar-wrap">
-                  <div className="score-widget__bar">
-                    <div
-                      className="score-widget__bar-fill"
-                      style={{ width: `${pct}%` }}
-                    />
-                  </div>
-                  {currentNum && (
-                    <span className="score-widget__gap">
-                      +{profile.target_score - currentNum} pts to go
-                    </span>
-                  )}
-                </div>
-              </div>
-            </div>
-
-            {/* Today's tasks or no-plan CTA */}
-            {!profile.plan_created ? (
-              <div className="dash-card dash-no-plan">
-                <span className="dash-card__label">{t.todayLabel}</span>
-                <div className="dash-no-plan__body">
-                  <div className="dash-no-plan__icon">🗓️</div>
-                  <h3 className="dash-no-plan__title">{t.noPlanTitle}</h3>
-                  <p className="dash-no-plan__desc">{t.noPlanDesc}</p>
-                  <button
-                    className="dash-no-plan__btn"
-                    onClick={() => setCurrentPage('ai-buddy')}
-                  >
-                    {t.noPlanBtn}
-                  </button>
-                </div>
-              </div>
-            ) : (
-              <div className="dash-card">
-                <span className="dash-card__label">{t.todayLabel}</span>
-
-                {doneCount === tasks.length ? (
-                  <div className="dash-all-done">{t.allDone}</div>
-                ) : (
-                  <div className="task-list">
-                    {tasks.map(task => {
-                      const isDone = !!done[task.id];
-                      const c = colorMap[task.color] || colorMap.blue;
-                      return (
-                        <div
-                          key={task.id}
-                          className={`task-item ${isDone ? 'task-item--done' : ''}`}
-                          style={{ '--task-bar': c.bar, '--task-bg': c.bg }}
-                          onClick={() => toggleTask(task.id)}
-                        >
-                          <div className="task-item__bar" />
-                          <div className="task-item__check">
-                            {isDone ? '✓' : ''}
-                          </div>
-                          <div className="task-item__body">
-                            <span className="task-item__title">{task.title}</span>
-                            <span className="task-item__action">{task.action}</span>
-                          </div>
-                          <span className="task-item__duration">{task.duration}</span>
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* AI Buddy CTA */}
             <button
-              className="dash-ai-btn"
+              className="dashboard-empty__btn"
               onClick={() => setCurrentPage('ai-buddy')}
             >
-              <span className="dash-ai-btn__star">✦</span>
-              <div className="dash-ai-btn__text">
-                <span className="dash-ai-btn__title">{t.aiBtnLabel}</span>
-                <span className="dash-ai-btn__sub">{t.aiBtnSub}</span>
-              </div>
-              <span className="dash-ai-btn__arrow">→</span>
+              {ru ? 'Начать планирование →' : 'Start Planning →'}
             </button>
-          </div>
-
-          {/* ── Right column ── */}
-          <div className="dashboard__right">
-
-            {/* Plan summary (if exists) or weekly focus */}
-            {profile.plan_summary ? (
-              <div className="dash-card">
-                <span className="dash-card__label">{t.planSummaryLabel}</span>
-                <p className="dash-plan-summary">{profile.plan_summary}</p>
-                <button
-                  className="dash-resources-btn"
-                  style={{ marginTop: '12px' }}
-                  onClick={() => setCurrentPage('ai-buddy')}
-                >
-                  {language === 'ru' ? 'Скорректировать план →' : 'Adjust plan →'}
-                </button>
-              </div>
-            ) : (
-              <div className="dash-card">
-                <span className="dash-card__label">{t.weeklyTitle}</span>
-                <ul className="weekly-list">
-                  {t.weeklyItems(profile.weak_sections).map((item, i) => (
-                    <li key={i} className="weekly-list__item">
-                      <span className="weekly-list__dot" />
-                      {item}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
-
-            {/* Quick links */}
-            <div className="dash-card">
-              <span className="dash-card__label">{t.resourcesLabel}</span>
-              <button
-                className="dash-resources-btn"
-                onClick={() => setCurrentPage('resources')}
-              >
-                {language === 'ru' ? 'Открыть библиотеку →' : 'Browse library →'}
-              </button>
-            </div>
-
           </div>
         </div>
       </div>
+    );
+  }
+
+  const completedToday = tasks.filter(t => t.completed).length;
+  const todayPct = tasks.length > 0 ? Math.round((completedToday / tasks.length) * 100) : 0;
+  const allDone = tasks.length > 0 && completedToday === tasks.length;
+
+  const statusText = allDone
+    ? (ru ? '🎉 На сегодня всё выполнено!' : "🎉 All done for today!")
+    : streak > 2
+      ? (ru ? `🔥 ${streak} дней подряд — продолжай!` : `🔥 ${streak} day streak — keep it up!`)
+      : (ru ? 'Ты в пути 💪' : "You're on track 💪");
+
+  // Build week strip: days around today
+  const weekDays = Array.from({ length: 7 }, (_, i) => dayNum - 1 + i);
+  const weekMap = {};
+  weekData.forEach(t => {
+    if (!weekMap[t.day_number]) weekMap[t.day_number] = { total: 0, done: 0 };
+    weekMap[t.day_number].total++;
+    if (t.completed) weekMap[t.day_number].done++;
+  });
+
+  const weakSpots = [
+    ...(profile.weak_sections?.includes('math') ? WEAK_SPOT_MAP.math : []),
+    ...(profile.weak_sections?.includes('reading') ? WEAK_SPOT_MAP.reading : []),
+  ].slice(0, 3);
+
+  return (
+    <div className="dashboard">
+      {confetti && <ConfettiBurst />}
+      <div className="dashboard__inner">
+
+        {/* ── Header ── */}
+        <div className="dash-header">
+          <div className="dash-header__left">
+            <h1 className="dash-header__greeting">
+              {greeting}, <span className="dash-header__name">{emailName}!</span>
+            </h1>
+            <p className="dash-header__status">{statusText}</p>
+            <p className="dash-header__day">
+              {ru ? `День ${dayNum} из ${totalDays}` : `Day ${dayNum} of ${totalDays}`}
+              {` · ${ru ? 'Неделя' : 'Week'} ${week}`}
+            </p>
+          </div>
+          <div className="dash-streak-badge">
+            <span className="dash-streak-badge__fire">🔥</span>
+            <span className="dash-streak-badge__num">{streak}</span>
+            <span className="dash-streak-badge__label">{ru ? 'дней' : 'days'}</span>
+          </div>
+        </div>
+
+        {/* ── Score progress ── */}
+        <div className="dash-score-bar">
+          <div className="dash-score-bar__labels">
+            <span>{ru ? 'Текущий' : 'Current'}: <strong>{currentNum ?? '—'}</strong></span>
+            <span className="dash-score-bar__pct">{pct}%</span>
+            <span>{ru ? 'Цель' : 'Target'}: <strong>{profile.target_score}</strong></span>
+          </div>
+          <div className="dash-score-bar__track">
+            <div className="dash-score-bar__fill" style={{ width: `${pct}%` }} />
+          </div>
+        </div>
+
+        {/* ── Today's Tasks ── */}
+        <section className="dash-section">
+          <div className="dash-section__header">
+            <h2 className="dash-section__title">{ru ? "Задачи на сегодня" : "Today's Tasks"}</h2>
+            {allDone && <span className="dash-section__badge">{ru ? 'Выполнено ✓' : 'Complete ✓'}</span>}
+          </div>
+
+          {tasksLoading ? (
+            <div className="dash-tasks-loading">
+              <div className="chat-typing"><span/><span/><span/></div>
+            </div>
+          ) : tasks.length === 0 ? (
+            <div className="dash-no-tasks">
+              {ru ? 'Нет задач на сегодня — отдохни!' : 'No tasks for today — take a rest!'}
+            </div>
+          ) : (
+            <div className="task-cards">
+              {tasks.map(task => {
+                const meta = TYPE_META[task.task_type] || TYPE_META.practice;
+                return (
+                  <div
+                    key={task.id}
+                    className={`task-card task-card--${meta.color} ${task.completed ? 'task-card--done' : ''}`}
+                  >
+                    <div className="task-card__top">
+                      <span className="task-card__type-badge">
+                        {meta.icon} {meta.label}
+                      </span>
+                      <span className="task-card__duration">{task.duration_minutes} min</span>
+                    </div>
+                    <p className="task-card__title">{task.task_title}</p>
+                    <p className="task-card__resource">{task.resource_name}</p>
+                    <div className="task-card__actions">
+                      {task.resource_url && (
+                        <a
+                          href={task.resource_url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="task-card__link"
+                        >
+                          {ru ? 'Открыть →' : 'Open →'}
+                        </a>
+                      )}
+                      <button
+                        className={`task-card__check ${task.completed ? 'task-card__check--done' : ''}`}
+                        onClick={() => task.completed ? unmarkComplete(task.id) : markComplete(task.id)}
+                      >
+                        {task.completed ? (ru ? '✓ Готово' : '✓ Done') : (ru ? 'Отметить' : 'Mark done')}
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          {/* Today's progress bar */}
+          {tasks.length > 0 && (
+            <div className="dash-today-progress">
+              <div className="dash-today-progress__track">
+                <div className="dash-today-progress__fill" style={{ width: `${todayPct}%` }} />
+              </div>
+              <span className="dash-today-progress__label">
+                {completedToday}/{tasks.length} {ru ? 'задач выполнено' : 'tasks done'}
+              </span>
+            </div>
+          )}
+        </section>
+
+        {/* ── This Week ── */}
+        <section className="dash-section">
+          <h2 className="dash-section__title">{ru ? 'Эта неделя' : 'This Week'}</h2>
+          <div className="week-strip">
+            {weekDays.map(d => {
+              const isPast    = d < dayNum;
+              const isToday   = d === dayNum;
+              const isFuture  = d > dayNum;
+              const info      = weekMap[d];
+              const isDone    = info && info.done === info.total && info.total > 0;
+              const isPartial = info && info.done > 0 && info.done < info.total;
+
+              return (
+                <div
+                  key={d}
+                  className={`week-day ${isToday ? 'week-day--today' : ''} ${isPast && isDone ? 'week-day--done' : ''} ${isPast && !isDone && info ? 'week-day--missed' : ''} ${isFuture ? 'week-day--future' : ''}`}
+                >
+                  <span className="week-day__num">{ru ? `Д${d}` : `D${d}`}</span>
+                  <span className="week-day__status">
+                    {isToday ? '●' : isPast && isDone ? '✓' : isPast && isPartial ? '◑' : isPast ? '○' : '·'}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        </section>
+
+        {/* ── Bottom grid ── */}
+        <div className="dash-bottom-grid">
+
+          {/* Weak Spots */}
+          {weakSpots.length > 0 && (
+            <section className="dash-weak-spots">
+              <h2 className="dash-section__title">{ru ? 'Слабые стороны' : 'Your Weak Spots'}</h2>
+              <div className="weak-list">
+                {weakSpots.map((spot, i) => (
+                  <div key={i} className="weak-item">
+                    <div className="weak-item__header">
+                      <span className="weak-item__name">{spot.name}</span>
+                      <button
+                        className="weak-item__btn"
+                        onClick={() => setCurrentPage('ai-buddy')}
+                      >
+                        {ru ? 'Практика' : 'Practice'}
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </section>
+          )}
+
+          {/* AI Buddy CTA */}
+          <button className="dash-ai-btn" onClick={() => setCurrentPage('ai-buddy')}>
+            <span className="dash-ai-btn__star">✦</span>
+            <div className="dash-ai-btn__text">
+              <span className="dash-ai-btn__title">{ru ? 'Спросить AI Помощника' : 'Ask AI Buddy'}</span>
+              <span className="dash-ai-btn__sub">{ru ? 'Объяснит, разберёт, скорректирует план' : 'Explain, solve problems, adjust your plan'}</span>
+            </div>
+            <span className="dash-ai-btn__arrow">→</span>
+          </button>
+        </div>
+
+        {/* ── Rebuild plan ── */}
+        <div className="dash-rebuild-wrap">
+          <button className="dash-rebuild-btn" onClick={rebuildPlan} disabled={rebuilding}>
+            {rebuilding
+              ? (ru ? 'Удаляю...' : 'Clearing...')
+              : (ru ? 'Пересоздать план' : 'Rebuild my plan')}
+          </button>
+        </div>
+
+      </div>
+    </div>
+  );
+}
+
+function ConfettiBurst() {
+  const pieces = Array.from({ length: 18 }, (_, i) => i);
+  const colors = ['#3b82f6', '#10b981', '#f59e0b', '#8b5cf6', '#06b6d4', '#ec4899'];
+  return (
+    <div className="confetti-wrap" aria-hidden="true">
+      {pieces.map(i => (
+        <div
+          key={i}
+          className="confetti-piece"
+          style={{
+            left: `${Math.random() * 100}%`,
+            background: colors[i % colors.length],
+            animationDelay: `${Math.random() * 0.4}s`,
+            width: `${6 + Math.random() * 6}px`,
+            height: `${6 + Math.random() * 6}px`,
+          }}
+        />
+      ))}
     </div>
   );
 }

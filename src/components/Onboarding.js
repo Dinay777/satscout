@@ -13,7 +13,8 @@ const steps = {
         { label: '1100–1200', value: 1150 },
         { label: '1200–1300', value: 1250 },
         { label: '1300–1400', value: 1350 },
-        { label: '1400+', value: 1450, accent: true, sub: 'top 4%' },
+        { label: '1400–1500', value: 1450, accent: true, sub: 'top 4%' },
+        { label: '1500+', value: 1520, accent: true, sub: 'top 1%' },
       ],
     },
     {
@@ -79,7 +80,8 @@ const steps = {
         { label: '1100–1200', value: 1150 },
         { label: '1200–1300', value: 1250 },
         { label: '1300–1400', value: 1350 },
-        { label: '1400+', value: 1450, accent: true, sub: 'топ 4%' },
+        { label: '1400–1500', value: 1450, accent: true, sub: 'топ 4%' },
+        { label: '1500+', value: 1520, accent: true, sub: 'топ 1%' },
       ],
     },
     {

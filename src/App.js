@@ -51,7 +51,18 @@ function App() {
       .select('*')
       .eq('user_id', user.id)
       .single()
-      .then(({ data }) => {
+      .then(async ({ data }) => {
+        if (!data) {
+          // Verify the session is still valid server-side
+          const { error: authError } = await supabase.auth.getUser();
+          if (authError) {
+            // Stale session — sign out silently
+            await supabase.auth.signOut();
+            setUser(null);
+            setProfileLoading(false);
+            return;
+          }
+        }
         setProfile(data ?? null);
         if (data) setCurrentPage('dashboard');
         setProfileLoading(false);
@@ -146,6 +157,7 @@ function App() {
             user={user}
             profile={profile}
             onProfileUpdate={(updated) => setProfile(updated)}
+            setCurrentPage={setCurrentPage}
           />
         </div>
       )}
@@ -156,6 +168,7 @@ function App() {
           profile={profile}
           language={language}
           setCurrentPage={setCurrentPage}
+          onProfileUpdate={(updated) => setProfile(updated)}
         />
       )}
 

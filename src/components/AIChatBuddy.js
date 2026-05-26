@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
+import { generateAndSavePlan } from '../lib/planGenerator';
 
 const text = {
   en: {
@@ -9,6 +10,8 @@ const text = {
     send: '→',
     welcome: 'Hey! 👋 I\'m your SAT Study Buddy. I can help you with:\n\n• **Explain SAT concepts** — ask me about any math topic, reading strategy, or grammar rule\n• **Break down problems** — paste a question and I\'ll walk you through it step by step\n• **Build a study plan** — tell me your test date, current score, and goal\n• **Recommend resources** — I know every resource in our library\n\nWhat would you like help with?',
     welcomeRu: 'Привет! 👋 Я твой AI помощник для SAT. Я могу:\n\n• **Объяснить концепты SAT** — спроси о любой теме\n• **Разобрать задачу** — пришли вопрос и я разберу его пошагово\n• **Составить план** — скажи дату экзамена, текущий и целевой балл\n• **Порекомендовать ресурсы** — я знаю всю нашу библиотеку\n\nЧем помочь?',
+    welcomePlan: "Hey! 👋 I'm ready to build your personalized study plan.\n\nI'll ask you a few quick questions so the plan actually fits your life — your schedule, your weak spots, how you like to study.\n\nReady? Click below to get started.",
+    welcomePlanRu: 'Привет! 👋 Готов составить твой персональный план подготовки.\n\nЗадам несколько вопросов чтобы план реально подходил тебе — твоё расписание, слабые места, как тебе удобнее учиться.\n\nГотов? Нажми ниже.',
     suggestions: [
       'How should I start preparing for the SAT?',
       'Explain SAT Reading strategies',
@@ -41,17 +44,43 @@ function formatMessage(text) {
 
 const PLAN_UPDATE_RE = /\[\[PLAN_UPDATE\]\][\s\S]*?\[\[\/PLAN_UPDATE\]\]/g;
 
-function AIChatBuddy({ language, user, profile, onProfileUpdate }) {
+function AIChatBuddy({ language, user, profile, onProfileUpdate, setCurrentPage }) {
   const t = text.en;
-  const welcomeMessage = { role: 'assistant', content: language === 'ru' ? t.welcomeRu : t.welcome };
+  const noPlan = !profile?.plan_created;
+  const welcomeContent = noPlan
+    ? (language === 'ru' ? t.welcomePlanRu : t.welcomePlan)
+    : (language === 'ru' ? t.welcomeRu : t.welcome);
+  const welcomeMessage = { role: 'assistant', content: welcomeContent };
 
   const [messages, setMessages] = useState([welcomeMessage]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isStreaming, setIsStreaming] = useState(false);
   const [historyLoading, setHistoryLoading] = useState(!!user);
+  const [planJustCreated, setPlanJustCreated] = useState(false);
+  const [savingPlan, setSavingPlan] = useState(false);
+  const latestProfileRef = useRef(profile);
 
   const messagesContainerRef = useRef(null);
+
+  // Keep ref in sync so savePlan always has latest profile
+  useEffect(() => { latestProfileRef.current = profile; }, [profile]);
+
+  // ── Save plan to Dashboard ────────────────────────────────────────────────
+  const savePlanToDashboard = useCallback(async () => {
+    setSavingPlan(true);
+    try {
+      await generateAndSavePlan(latestProfileRef.current, user.id);
+      if (onProfileUpdate) {
+        onProfileUpdate({ ...latestProfileRef.current, plan_created: true });
+      }
+      setCurrentPage('dashboard');
+    } catch (e) {
+      console.error('Plan save failed', e);
+    } finally {
+      setSavingPlan(false);
+    }
+  }, [user.id, onProfileUpdate, setCurrentPage]);
 
   // ── Load history from Supabase on mount ───────────────────────────────────
   useEffect(() => {
@@ -145,6 +174,7 @@ function AIChatBuddy({ language, user, profile, onProfileUpdate }) {
             if (parsed.error) throw new Error(parsed.error);
 
             if (parsed.planUpdate && user && onProfileUpdate) {
+              if (parsed.planUpdate.plan_created) setPlanJustCreated(true);
               supabase
                 .from('profiles')
                 .update(parsed.planUpdate)
@@ -192,7 +222,11 @@ function AIChatBuddy({ language, user, profile, onProfileUpdate }) {
     }
   };
 
-  const suggestions = language === 'ru' ? t.suggestionsRu : t.suggestions;
+  const suggestions = noPlan
+    ? (language === 'ru'
+        ? ["Давай составим план →"]
+        : ["Let's build my study plan →"])
+    : (language === 'ru' ? t.suggestionsRu : t.suggestions);
   const showSuggestions = messages.length <= 1;
 
   return (
@@ -284,13 +318,40 @@ function AIChatBuddy({ language, user, profile, onProfileUpdate }) {
                   <div className="chat-suggestions">
                     {suggestions.map((s, i) => (
                       <button
-                        className="chat-suggestion"
+                        className={`chat-suggestion ${noPlan ? 'chat-suggestion--primary' : ''}`}
                         key={i}
                         onClick={() => sendMessage(s)}
                       >
                         {s}
                       </button>
                     ))}
+                  </div>
+                )}
+
+                {planJustCreated && (
+                  <div className="chat-save-plan">
+                    <div className="chat-save-plan__inner">
+                      <span className="chat-save-plan__icon">🎉</span>
+                      <div>
+                        <p className="chat-save-plan__title">
+                          {language === 'ru' ? 'Твой план готов!' : 'Your plan is ready!'}
+                        </p>
+                        <p className="chat-save-plan__sub">
+                          {language === 'ru'
+                            ? 'Сохрани его в Dashboard — там будут задачи на каждый день.'
+                            : "Save it to your Dashboard — you'll get daily tasks and progress tracking."}
+                        </p>
+                      </div>
+                      <button
+                        className="chat-save-plan__btn"
+                        onClick={savePlanToDashboard}
+                        disabled={savingPlan}
+                      >
+                        {savingPlan
+                          ? (language === 'ru' ? 'Сохраняю...' : 'Saving...')
+                          : (language === 'ru' ? 'Сохранить в Dashboard →' : 'Save to Dashboard →')}
+                      </button>
+                    </div>
                   </div>
                 )}
               </>
