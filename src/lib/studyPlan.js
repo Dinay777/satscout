@@ -20,7 +20,9 @@ export function getCurrentScoreNum(currentScore) {
     '1000-1100': 1050,
     '1100-1200': 1150,
     '1200-1300': 1250,
-    '1300+': 1350,
+    '1300-1400': 1350,
+    '1400-1500': 1450,
+    '1500+': 1520,
   };
   return map[currentScore] ?? null;
 }
