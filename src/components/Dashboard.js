@@ -92,7 +92,7 @@ function Dashboard({ user, profile, language, setCurrentPage }) {
     return {};
   });
 
-  const days       = getDaysUntilTest(profile.exam_timeframe);
+  const days       = getDaysUntilTest(profile.exam_timeframe, profile.created_at);
   const currentNum = profile.current_score_actual ?? getCurrentScoreNum(profile.current_score);
   const pct        = getProgressPercent(currentNum, profile.target_score);
   const greeting   = getGreeting(language);
