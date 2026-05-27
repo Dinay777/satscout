@@ -3984,6 +3984,13 @@ button {
   font-weight: 600;
 }
 
+.dash-streak-badge--lost {
+  background: var(--gray-50);
+  border-color: var(--gray-200);
+}
+.dash-streak-badge--lost .dash-streak-badge__num { color: var(--gray-400); }
+.dash-streak-badge--lost .dash-streak-badge__label { color: var(--gray-400); }
+
 /* Score progress bar */
 .dash-score-bar {
   background: white;
@@ -4080,6 +4087,11 @@ button {
   background: rgba(16,185,129,0.1);
   padding: 3px 10px;
   border-radius: 99px;
+}
+
+.dash-section__badge--future {
+  color: var(--gray-500);
+  background: var(--gray-100);
 }
 
 /* Task cards */
@@ -4237,7 +4249,11 @@ button {
   padding: 10px 14px;
   min-width: 60px;
   flex-shrink: 0;
+  cursor: pointer;
+  font-family: var(--font-body);
+  transition: transform 0.12s, box-shadow 0.12s;
 }
+.week-day:hover { transform: translateY(-2px); box-shadow: var(--shadow-sm); }
 
 .week-day--today {
   border-color: var(--blue);
@@ -4249,8 +4265,11 @@ button {
   background: rgba(16,185,129,0.06);
 }
 
-.week-day--missed { opacity: 0.5; }
-.week-day--future { opacity: 0.4; }
+.week-day--selected {
+  border-color: var(--blue);
+  background: rgba(59,130,246,0.1);
+  box-shadow: 0 0 0 2px rgba(59,130,246,0.2);
+}
 
 .week-day__num {
   font-size: 0.72rem;

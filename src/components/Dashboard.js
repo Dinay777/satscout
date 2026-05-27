@@ -34,11 +34,12 @@ function getDayNumber(planStartDate) {
 
 function Dashboard({ user, profile, language, setCurrentPage, onProfileUpdate }) {
   const [tasks, setTasks]           = useState([]);
-  const [weekData, setWeekData]     = useState([]);
+  const [weekFullData, setWeekFullData] = useState([]);
   const [allTasksStats, setAllTasksStats] = useState({ total: 0, completed: 0 });
   const [tasksLoading, setTasksLoading] = useState(true);
   const [confetti, setConfetti]     = useState(false);
   const [rebuilding, setRebuilding] = useState(false);
+  const [selectedDay, setSelectedDay] = useState(null);
 
   const greeting  = getGreeting(language);
   const emailName = user?.email?.split('@')[0] ?? '';
@@ -48,6 +49,11 @@ function Dashboard({ user, profile, language, setCurrentPage, onProfileUpdate })
   const targetScore = profile.target_score ?? 1400;
   const week       = getWeekNumber(profile.created_at);
   const streak     = profile.current_streak ?? 0;
+
+  const activeDay = selectedDay ?? dayNum;
+  // Show 1 on day 1 before any task is completed; gray if streak was lost
+  const displayStreak = streak === 0 && !profile.last_active_date && profile.plan_created ? 1 : streak;
+  const streakLost    = streak === 0 && !!profile.last_active_date;
 
   const completionRate = allTasksStats.total > 0 ? allTasksStats.completed / allTasksStats.total : 0;
   const estimatedScore = Math.round(startScore + (targetScore - startScore) * completionRate);
@@ -64,12 +70,12 @@ function Dashboard({ user, profile, language, setCurrentPage, onProfileUpdate })
 
     Promise.all([
       supabase.from('user_tasks').select('*').eq('user_id', user.id).eq('day_number', dayNum),
-      supabase.from('user_tasks').select('day_number, completed').eq('user_id', user.id)
-        .gte('day_number', dayNum - 3).lte('day_number', dayNum + 6),
+      supabase.from('user_tasks').select('*').eq('user_id', user.id)
+        .gte('day_number', dayNum).lte('day_number', dayNum + 6),
       supabase.from('user_tasks').select('completed').eq('user_id', user.id),
     ]).then(([todayRes, weekRes, allRes]) => {
       setTasks(todayRes.data ?? []);
-      setWeekData(weekRes.data ?? []);
+      setWeekFullData(weekRes.data ?? []);
       const all = allRes.data ?? [];
       setAllTasksStats({ total: all.length, completed: all.filter(t => t.completed).length });
       setTasksLoading(false);
@@ -159,18 +165,23 @@ function Dashboard({ user, profile, language, setCurrentPage, onProfileUpdate })
 
   const statusText = allDone
     ? (ru ? '🎉 На сегодня всё выполнено!' : "🎉 All done for today!")
-    : streak > 2
-      ? (ru ? `🔥 ${streak} дней подряд — продолжай!` : `🔥 ${streak} day streak — keep it up!`)
+    : displayStreak > 2
+      ? (ru ? `🔥 ${displayStreak} дней подряд — продолжай!` : `🔥 ${displayStreak} day streak — keep it up!`)
       : (ru ? 'Ты в пути 💪' : "You're on track 💪");
 
-  // Build week strip: days around today
-  const weekDays = Array.from({ length: 7 }, (_, i) => dayNum - 1 + i);
+  // Week strip: today + next 6 days
+  const weekDays = Array.from({ length: 7 }, (_, i) => dayNum + i);
   const weekMap = {};
-  weekData.forEach(t => {
-    if (!weekMap[t.day_number]) weekMap[t.day_number] = { total: 0, done: 0 };
+  weekFullData.forEach(t => {
+    if (!weekMap[t.day_number]) weekMap[t.day_number] = { total: 0, done: 0, tasks: [] };
     weekMap[t.day_number].total++;
     if (t.completed) weekMap[t.day_number].done++;
+    weekMap[t.day_number].tasks.push(t);
   });
+
+  // Tasks shown in the main section (today = interactive, future = read-only)
+  const isViewingToday = activeDay === dayNum;
+  const shownTasks = isViewingToday ? tasks : (weekMap[activeDay]?.tasks ?? []);
 
   const weakSpots = [
     ...(profile.weak_sections?.includes('math') ? WEAK_SPOT_MAP.math : []),
@@ -194,9 +205,9 @@ function Dashboard({ user, profile, language, setCurrentPage, onProfileUpdate })
               {` · ${ru ? 'Неделя' : 'Week'} ${week}`}
             </p>
           </div>
-          <div className="dash-streak-badge">
-            <span className="dash-streak-badge__fire">🔥</span>
-            <span className="dash-streak-badge__num">{streak}</span>
+          <div className={`dash-streak-badge ${streakLost ? 'dash-streak-badge--lost' : ''}`}>
+            <span className="dash-streak-badge__fire">{streakLost ? '🩶' : '🔥'}</span>
+            <span className="dash-streak-badge__num">{displayStreak}</span>
             <span className="dash-streak-badge__label">{ru ? 'дней' : 'days'}</span>
           </div>
         </div>
@@ -229,21 +240,28 @@ function Dashboard({ user, profile, language, setCurrentPage, onProfileUpdate })
         {/* ── Today's Tasks ── */}
         <section className="dash-section">
           <div className="dash-section__header">
-            <h2 className="dash-section__title">{ru ? "Задачи на сегодня" : "Today's Tasks"}</h2>
-            {allDone && <span className="dash-section__badge">{ru ? 'Выполнено ✓' : 'Complete ✓'}</span>}
+            <h2 className="dash-section__title">
+              {isViewingToday
+                ? (ru ? 'Задачи на сегодня' : "Today's Tasks")
+                : (ru ? `День ${activeDay}` : `Day ${activeDay}`)}
+            </h2>
+            {isViewingToday && allDone && <span className="dash-section__badge">{ru ? 'Выполнено ✓' : 'Complete ✓'}</span>}
+            {!isViewingToday && <span className="dash-section__badge dash-section__badge--future">{ru ? 'Впереди' : 'Upcoming'}</span>}
           </div>
 
           {tasksLoading ? (
             <div className="dash-tasks-loading">
               <div className="chat-typing"><span/><span/><span/></div>
             </div>
-          ) : tasks.length === 0 ? (
+          ) : shownTasks.length === 0 ? (
             <div className="dash-no-tasks">
-              {ru ? 'Нет задач на сегодня — отдохни!' : 'No tasks for today — take a rest!'}
+              {isViewingToday
+                ? (ru ? 'Нет задач на сегодня — отдохни! 🎉' : 'No tasks for today — take a rest! 🎉')
+                : (ru ? 'Нет задач на этот день' : 'No tasks for this day')}
             </div>
           ) : (
             <div className="task-cards">
-              {tasks.map(task => {
+              {shownTasks.map(task => {
                 const meta = TYPE_META[task.task_type] || TYPE_META.practice;
                 return (
                   <div
@@ -269,12 +287,14 @@ function Dashboard({ user, profile, language, setCurrentPage, onProfileUpdate })
                           {ru ? 'Открыть →' : 'Open →'}
                         </a>
                       )}
-                      <button
-                        className={`task-card__check ${task.completed ? 'task-card__check--done' : ''}`}
-                        onClick={() => task.completed ? unmarkComplete(task.id) : markComplete(task.id)}
-                      >
-                        {task.completed ? (ru ? '✓ Готово' : '✓ Done') : (ru ? 'Отметить' : 'Mark done')}
-                      </button>
+                      {isViewingToday && (
+                        <button
+                          className={`task-card__check ${task.completed ? 'task-card__check--done' : ''}`}
+                          onClick={() => task.completed ? unmarkComplete(task.id) : markComplete(task.id)}
+                        >
+                          {task.completed ? (ru ? '✓ Готово' : '✓ Done') : (ru ? 'Отметить' : 'Mark done')}
+                        </button>
+                      )}
                     </div>
                   </div>
                 );
@@ -283,7 +303,7 @@ function Dashboard({ user, profile, language, setCurrentPage, onProfileUpdate })
           )}
 
           {/* Today's progress bar */}
-          {tasks.length > 0 && (
+          {isViewingToday && tasks.length > 0 && (
             <div className="dash-today-progress">
               <div className="dash-today-progress__track">
                 <div className="dash-today-progress__fill" style={{ width: `${todayPct}%` }} />
@@ -300,23 +320,23 @@ function Dashboard({ user, profile, language, setCurrentPage, onProfileUpdate })
           <h2 className="dash-section__title">{ru ? 'Эта неделя' : 'This Week'}</h2>
           <div className="week-strip">
             {weekDays.map(d => {
-              const isPast    = d < dayNum;
-              const isToday   = d === dayNum;
-              const isFuture  = d > dayNum;
-              const info      = weekMap[d];
-              const isDone    = info && info.done === info.total && info.total > 0;
-              const isPartial = info && info.done > 0 && info.done < info.total;
+              const isToday    = d === dayNum;
+              const isSelected = d === activeDay;
+              const info       = weekMap[d];
+              const isDone     = info && info.done === info.total && info.total > 0;
+              const isPartial  = info && info.done > 0 && info.done < info.total;
 
               return (
-                <div
+                <button
                   key={d}
-                  className={`week-day ${isToday ? 'week-day--today' : ''} ${isPast && isDone ? 'week-day--done' : ''} ${isPast && !isDone && info ? 'week-day--missed' : ''} ${isFuture ? 'week-day--future' : ''}`}
+                  className={`week-day ${isToday ? 'week-day--today' : ''} ${isDone ? 'week-day--done' : ''} ${isSelected ? 'week-day--selected' : ''}`}
+                  onClick={() => setSelectedDay(d === activeDay && !isToday ? null : d)}
                 >
                   <span className="week-day__num">{ru ? `Д${d}` : `D${d}`}</span>
                   <span className="week-day__status">
-                    {isToday ? '●' : isPast && isDone ? '✓' : isPast && isPartial ? '◑' : isPast ? '○' : '·'}
+                    {isDone ? '✓' : isPartial ? '◑' : isToday ? '●' : '·'}
                   </span>
-                </div>
+                </button>
               );
             })}
           </div>

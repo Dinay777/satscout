@@ -70,7 +70,8 @@ function AIChatBuddy({ language, user, profile, onProfileUpdate, setCurrentPage 
     try {
       await generateAndSavePlan(latestProfileRef.current, user.id);
       if (onProfileUpdate) {
-        onProfileUpdate({ ...latestProfileRef.current, plan_created: true });
+        const today = new Date().toISOString().slice(0, 10);
+        onProfileUpdate({ ...latestProfileRef.current, plan_created: true, plan_start_date: today });
       }
       setCurrentPage('dashboard');
     } catch (e) {
