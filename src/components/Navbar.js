@@ -6,6 +6,7 @@ const text = {
     aiBuddy: 'AI Study Buddy',
     about: 'About',
     dashboard: 'Dashboard',
+    progress: 'Progress',
     signIn: 'Sign In',
     signOut: 'Sign out',
   },
@@ -14,6 +15,7 @@ const text = {
     aiBuddy: 'AI Помощник',
     about: 'О нас',
     dashboard: 'Кабинет',
+    progress: 'Прогресс',
     signIn: 'Войти',
     signOut: 'Выйти',
   }
@@ -91,6 +93,12 @@ function Navbar({ currentPage, setCurrentPage, language, setLanguage, user, onSi
                 onClick={() => navigate('dashboard')}
               >
                 {t.dashboard}
+              </button>
+              <button
+                className={`navbar__link ${currentPage === 'progress' ? 'navbar__link--active' : ''}`}
+                onClick={() => navigate('progress')}
+              >
+                {t.progress}
               </button>
               <div className="navbar__user" onClick={e => { e.stopPropagation(); setUserMenuOpen(o => !o); }}>
                 <div className="navbar__avatar">{avatarLetter}</div>

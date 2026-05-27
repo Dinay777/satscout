@@ -17,6 +17,7 @@ import About from './components/About';
 import Auth from './components/Auth';
 import Onboarding from './components/Onboarding';
 import Dashboard from './components/Dashboard';
+import Progress from './components/Progress';
 import Footer from './components/Footer';
 
 function App() {
@@ -169,6 +170,15 @@ function App() {
           language={language}
           setCurrentPage={setCurrentPage}
           onProfileUpdate={(updated) => setProfile(updated)}
+        />
+      )}
+
+      {currentPage === 'progress' && profile && (
+        <Progress
+          user={user}
+          profile={profile}
+          language={language}
+          setCurrentPage={setCurrentPage}
         />
       )}
 

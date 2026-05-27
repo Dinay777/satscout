@@ -4409,3 +4409,195 @@ button {
   background: linear-gradient(135deg, var(--blue), var(--teal));
   color: white;
 }
+
+/* ── Progress Page ── */
+.progress-page {
+  min-height: 100vh;
+  background: var(--gray-50);
+  padding: 104px 16px 32px;
+}
+
+.progress-inner {
+  max-width: 640px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.progress-loading,
+.progress-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 60vh;
+  gap: 12px;
+  text-align: center;
+}
+
+.progress-empty__icon { font-size: 3rem; }
+.progress-empty h2 { font-size: 1.3rem; color: var(--navy); margin: 0; }
+.progress-empty p { font-size: 0.9rem; color: var(--gray-500); margin: 0; }
+
+.progress-header { text-align: center; padding-bottom: 4px; }
+.progress-header__title { font-size: 1.6rem; font-weight: 800; color: var(--navy); margin: 0 0 4px; }
+.progress-header__sub { font-size: 0.9rem; color: var(--gray-500); margin: 0; }
+
+/* Stats row */
+.progress-stats {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+}
+
+@media (max-width: 480px) {
+  .progress-stats { grid-template-columns: repeat(2, 1fr); }
+}
+
+.progress-stat {
+  background: white;
+  border: 1px solid var(--gray-200);
+  border-radius: 16px;
+  padding: 16px 12px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  box-shadow: var(--shadow-sm);
+  text-align: center;
+}
+
+.progress-stat__icon { font-size: 1.3rem; }
+.progress-stat__value { font-size: 1.4rem; font-weight: 800; color: var(--navy); }
+.progress-stat__label { font-size: 0.7rem; color: var(--gray-500); font-weight: 500; }
+
+/* Card */
+.progress-card {
+  background: white;
+  border: 1px solid var(--gray-200);
+  border-radius: 20px;
+  padding: 24px;
+  box-shadow: var(--shadow-sm);
+}
+
+.progress-card__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.progress-card__title {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--navy);
+  margin: 0 0 12px;
+}
+
+.progress-card__header .progress-card__title { margin-bottom: 0; }
+
+/* Score chips */
+.progress-score-chips {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.chip {
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 4px 10px;
+  border-radius: 20px;
+  white-space: nowrap;
+}
+
+.chip--start  { background: rgba(148,163,184,0.15); color: var(--gray-500); }
+.chip--now    { background: rgba(59,130,246,0.12);  color: var(--blue); }
+.chip--target { background: rgba(16,185,129,0.12);  color: var(--green); }
+
+/* Week summary */
+.week-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-around;
+  gap: 8px;
+}
+
+.week-summary__item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.week-summary__num {
+  font-size: 1.6rem;
+  font-weight: 800;
+  color: var(--navy);
+}
+
+.week-summary__label {
+  font-size: 0.72rem;
+  color: var(--gray-500);
+  font-weight: 500;
+  text-align: center;
+}
+
+.week-summary__divider {
+  width: 1px;
+  height: 40px;
+  background: var(--gray-200);
+  flex-shrink: 0;
+}
+
+/* Streak card */
+.progress-streak-card { }
+
+.progress-streak {
+  display: flex;
+  align-items: center;
+  justify-content: space-around;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.progress-streak__item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.progress-streak__fire { font-size: 1.6rem; }
+
+.progress-streak__num {
+  font-size: 2rem;
+  font-weight: 800;
+  color: var(--navy);
+}
+
+.progress-streak__label {
+  font-size: 0.72rem;
+  color: var(--gray-500);
+  font-weight: 500;
+}
+
+.progress-streak__divider {
+  width: 1px;
+  height: 50px;
+  background: var(--gray-200);
+  flex-shrink: 0;
+}
+
+.progress-streak__msg {
+  text-align: center;
+  font-size: 0.85rem;
+  color: var(--gray-500);
+  margin: 0;
+  padding-top: 4px;
+}
+
+.progress-streak__msg--good { color: var(--green); font-weight: 600; }
