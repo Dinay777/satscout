@@ -47,9 +47,7 @@ const PLAN_UPDATE_RE = /\[\[PLAN_UPDATE\]\][\s\S]*?\[\[\/PLAN_UPDATE\]\]/g;
 function AIChatBuddy({ language, user, profile, onProfileUpdate, setCurrentPage }) {
   const t = text.en;
   const noPlan = !profile?.plan_created;
-  const welcomeContent = noPlan
-    ? (language === 'ru' ? t.welcomePlanRu : t.welcomePlan)
-    : (language === 'ru' ? t.welcomeRu : t.welcome);
+  const welcomeContent = noPlan ? t.welcomePlan : t.welcome;
   const welcomeMessage = { role: 'assistant', content: welcomeContent };
 
   const [messages, setMessages] = useState([welcomeMessage]);
@@ -223,9 +221,7 @@ function AIChatBuddy({ language, user, profile, onProfileUpdate, setCurrentPage 
   };
 
   const suggestions = noPlan
-    ? (language === 'ru'
-        ? ["Давай составим план →"]
-        : ["Let's build my study plan →"])
+    ? ["Let's build my study plan →"]
     : (language === 'ru' ? t.suggestionsRu : t.suggestions);
   const showSuggestions = messages.length <= 1;
 
