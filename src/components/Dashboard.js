@@ -3,7 +3,6 @@ import { supabase } from '../lib/supabase';
 import {
   getDaysUntilTest,
   getCurrentScoreNum,
-  getProgressPercent,
   getGreeting,
   getWeekNumber,
 } from '../lib/studyPlan';
@@ -36,6 +35,7 @@ function getDayNumber(planStartDate) {
 function Dashboard({ user, profile, language, setCurrentPage, onProfileUpdate }) {
   const [tasks, setTasks]           = useState([]);
   const [weekData, setWeekData]     = useState([]);
+  const [allTasksStats, setAllTasksStats] = useState({ total: 0, completed: 0 });
   const [tasksLoading, setTasksLoading] = useState(true);
   const [confetti, setConfetti]     = useState(false);
   const [rebuilding, setRebuilding] = useState(false);
@@ -44,10 +44,17 @@ function Dashboard({ user, profile, language, setCurrentPage, onProfileUpdate })
   const emailName = user?.email?.split('@')[0] ?? '';
   const dayNum    = getDayNumber(profile.plan_start_date);
   const totalDays = getDaysUntilTest(profile.exam_timeframe, profile.created_at);
-  const currentNum = profile.current_score_actual ?? getCurrentScoreNum(profile.current_score);
-  const pct        = getProgressPercent(currentNum, profile.target_score);
+  const startScore  = profile.current_score_actual ?? getCurrentScoreNum(profile.current_score) ?? 800;
+  const targetScore = profile.target_score ?? 1400;
   const week       = getWeekNumber(profile.created_at);
   const streak     = profile.current_streak ?? 0;
+
+  const completionRate = allTasksStats.total > 0 ? allTasksStats.completed / allTasksStats.total : 0;
+  const estimatedScore = Math.round(startScore + (targetScore - startScore) * completionRate);
+  const rawScorePct = targetScore > startScore
+    ? ((estimatedScore - startScore) / (targetScore - startScore)) * 100
+    : 0;
+  const scorePct = profile.plan_created ? Math.max(2.5, rawScorePct) : 0;
 
   const ru = language === 'ru';
 
@@ -59,9 +66,12 @@ function Dashboard({ user, profile, language, setCurrentPage, onProfileUpdate })
       supabase.from('user_tasks').select('*').eq('user_id', user.id).eq('day_number', dayNum),
       supabase.from('user_tasks').select('day_number, completed').eq('user_id', user.id)
         .gte('day_number', dayNum - 3).lte('day_number', dayNum + 6),
-    ]).then(([todayRes, weekRes]) => {
+      supabase.from('user_tasks').select('completed').eq('user_id', user.id),
+    ]).then(([todayRes, weekRes, allRes]) => {
       setTasks(todayRes.data ?? []);
       setWeekData(weekRes.data ?? []);
+      const all = allRes.data ?? [];
+      setAllTasksStats({ total: all.length, completed: all.filter(t => t.completed).length });
       setTasksLoading(false);
     });
   }, [user.id, profile.plan_created, dayNum]);
@@ -193,13 +203,26 @@ function Dashboard({ user, profile, language, setCurrentPage, onProfileUpdate })
 
         {/* ── Score progress ── */}
         <div className="dash-score-bar">
-          <div className="dash-score-bar__labels">
-            <span>{ru ? 'Текущий' : 'Current'}: <strong>{currentNum ?? '—'}</strong></span>
-            <span className="dash-score-bar__pct">{pct}%</span>
-            <span>{ru ? 'Цель' : 'Target'}: <strong>{profile.target_score}</strong></span>
+          <div className="dash-score-bar__estimated">
+            <span className="dash-score-bar__est-num">{estimatedScore}</span>
+            <span className="dash-score-bar__est-label">
+              {completionRate === 0 && profile.plan_created
+                ? (ru ? 'План создан — ты уже начала! 🎉' : 'Plan created — you\'ve already started! 🎉')
+                : (ru ? 'Текущий прогноз' : 'Estimated Score')}
+            </span>
           </div>
           <div className="dash-score-bar__track">
-            <div className="dash-score-bar__fill" style={{ width: `${pct}%` }} />
+            <div className="dash-score-bar__fill" style={{ width: `${scorePct}%` }} />
+          </div>
+          <div className="dash-score-bar__endpoints">
+            <div className="dash-score-bar__endpoint">
+              <span className="dash-score-bar__ep-num">{startScore}</span>
+              <span className="dash-score-bar__ep-label">{ru ? 'Старт' : 'Starting Score'}</span>
+            </div>
+            <div className="dash-score-bar__endpoint dash-score-bar__endpoint--right">
+              <span className="dash-score-bar__ep-num">{targetScore}</span>
+              <span className="dash-score-bar__ep-label">{ru ? 'Цель' : 'Goal Score'}</span>
+            </div>
           </div>
         </div>
 
