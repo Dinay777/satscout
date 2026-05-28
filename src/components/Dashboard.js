@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
+import { generateAndSavePlan } from '../lib/planGenerator';
 import {
   getDaysUntilTest,
   getCurrentScoreNum,
@@ -40,6 +41,7 @@ function Dashboard({ user, profile, language, setCurrentPage, onProfileUpdate })
   const [confetti, setConfetti]     = useState(false);
   const [rebuilding, setRebuilding] = useState(false);
   const [selectedDay, setSelectedDay] = useState(null);
+  const [generatingTasks, setGeneratingTasks] = useState(false);
 
   const greeting  = getGreeting(language);
   const emailName = user?.email?.split('@')[0] ?? '';
@@ -252,6 +254,26 @@ function Dashboard({ user, profile, language, setCurrentPage, onProfileUpdate })
           {tasksLoading ? (
             <div className="dash-tasks-loading">
               <div className="chat-typing"><span/><span/><span/></div>
+            </div>
+          ) : shownTasks.length === 0 && isViewingToday && allTasksStats.total === 0 ? (
+            <div className="dash-no-tasks">
+              <p>{ru ? 'Задачи не найдены — нужно сгенерировать план.' : 'Tasks not found — need to generate your plan.'}</p>
+              <button
+                className="dashboard-empty__btn"
+                style={{ marginTop: 12 }}
+                disabled={generatingTasks}
+                onClick={async () => {
+                  setGeneratingTasks(true);
+                  await generateAndSavePlan(profile, user.id);
+                  const today = new Date().toISOString().slice(0, 10);
+                  if (onProfileUpdate) onProfileUpdate({ ...profile, plan_created: true, plan_start_date: today });
+                  window.location.reload();
+                }}
+              >
+                {generatingTasks
+                  ? (ru ? 'Генерирую...' : 'Generating...')
+                  : (ru ? '⚡ Сгенерировать задачи' : '⚡ Generate Tasks')}
+              </button>
             </div>
           ) : shownTasks.length === 0 ? (
             <div className="dash-no-tasks">
