@@ -68,12 +68,15 @@ function Dashboard({ user, profile, language, setCurrentPage, onProfileUpdate })
   useEffect(() => {
     if (!profile.plan_created) { setTasksLoading(false); return; }
 
+    console.log('[Dashboard] Fetching tasks | user:', user.id, '| dayNum:', dayNum, '| plan_created:', profile.plan_created, '| plan_start_date:', profile.plan_start_date);
     Promise.all([
       supabase.from('user_tasks').select('*').eq('user_id', user.id).eq('day_number', dayNum),
       supabase.from('user_tasks').select('*').eq('user_id', user.id)
         .gte('day_number', dayNum).lte('day_number', dayNum + 6),
       supabase.from('user_tasks').select('completed').eq('user_id', user.id),
     ]).then(([todayRes, weekRes, allRes]) => {
+      console.log('[Dashboard] today tasks:', todayRes.data?.length, todayRes.error);
+      console.log('[Dashboard] all tasks total:', allRes.data?.length, allRes.error);
       setTasks(todayRes.data ?? []);
       setWeekFullData(weekRes.data ?? []);
       const all = allRes.data ?? [];
