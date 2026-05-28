@@ -264,10 +264,15 @@ function Dashboard({ user, profile, language, setCurrentPage, onProfileUpdate })
                 disabled={generatingTasks}
                 onClick={async () => {
                   setGeneratingTasks(true);
-                  await generateAndSavePlan(profile, user.id);
-                  const today = new Date().toISOString().slice(0, 10);
-                  if (onProfileUpdate) onProfileUpdate({ ...profile, plan_created: true, plan_start_date: today });
-                  window.location.reload();
+                  try {
+                    await generateAndSavePlan(profile, user.id);
+                    const today = new Date().toISOString().slice(0, 10);
+                    if (onProfileUpdate) onProfileUpdate({ ...profile, plan_created: true, plan_start_date: today });
+                    window.location.reload();
+                  } catch (e) {
+                    alert('Error: ' + e.message);
+                    setGeneratingTasks(false);
+                  }
                 }}
               >
                 {generatingTasks

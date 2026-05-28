@@ -130,14 +130,18 @@ export async function generateAndSavePlan(profile, userId) {
     }
   }
 
+  if (allTasks.length === 0) throw new Error('No tasks generated — check profile fields');
+
   for (let i = 0; i < allTasks.length; i += 100) {
-    await supabase.from('user_tasks').insert(allTasks.slice(i, i + 100));
+    const { error } = await supabase.from('user_tasks').insert(allTasks.slice(i, i + 100));
+    if (error) throw new Error(`Insert failed: ${error.message} (code: ${error.code})`);
   }
 
   const today = new Date().toISOString().slice(0, 10);
-  await supabase.from('profiles')
+  const { error: profileErr } = await supabase.from('profiles')
     .update({ plan_start_date: today, plan_created: true })
     .eq('user_id', userId);
+  if (profileErr) throw new Error(`Profile update failed: ${profileErr.message}`);
 
   return totalDays;
 }
