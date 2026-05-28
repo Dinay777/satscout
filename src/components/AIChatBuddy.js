@@ -58,6 +58,7 @@ function AIChatBuddy({ language, user, profile, onProfileUpdate, setCurrentPage 
   const [planJustCreated, setPlanJustCreated] = useState(false);
   const [savingPlan, setSavingPlan] = useState(false);
   const latestProfileRef = useRef(profile);
+  const planTasksRef = useRef(null);
 
   const messagesContainerRef = useRef(null);
 
@@ -68,7 +69,7 @@ function AIChatBuddy({ language, user, profile, onProfileUpdate, setCurrentPage 
   const savePlanToDashboard = useCallback(async () => {
     setSavingPlan(true);
     try {
-      await generateAndSavePlan(latestProfileRef.current, user.id);
+      await generateAndSavePlan(latestProfileRef.current, user.id, planTasksRef.current);
       if (onProfileUpdate) {
         const today = new Date().toISOString().slice(0, 10);
         onProfileUpdate({ ...latestProfileRef.current, plan_created: true, plan_start_date: today });
@@ -174,9 +175,12 @@ function AIChatBuddy({ language, user, profile, onProfileUpdate, setCurrentPage 
 
             if (parsed.planUpdate && user && onProfileUpdate) {
               if (parsed.planUpdate.plan_created) setPlanJustCreated(true);
+              // Extract plan_tasks before saving to DB (not a DB column)
+              const { plan_tasks, ...profileUpdate } = parsed.planUpdate;
+              if (plan_tasks?.length) planTasksRef.current = plan_tasks;
               supabase
                 .from('profiles')
-                .update(parsed.planUpdate)
+                .update(profileUpdate)
                 .eq('user_id', user.id)
                 .select()
                 .single()

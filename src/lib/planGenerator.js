@@ -74,7 +74,7 @@ function getPhase(dayNumber, totalDays) {
   return 'testprep';
 }
 
-export async function generateAndSavePlan(profile, userId) {
+export async function generateAndSavePlan(profile, userId, aiTasks = null) {
   const totalDays = TIMEFRAME_DAYS[profile.exam_timeframe] ?? 60;
   const tasksPerDay = TASKS_PER_DAY[profile.study_hours] ?? 2;
   const sections = profile.weak_sections ?? ['math', 'reading'];
@@ -84,49 +84,79 @@ export async function generateAndSavePlan(profile, userId) {
   await supabase.from('user_tasks').delete().eq('user_id', userId);
 
   const allTasks = [];
-  const idx = { math: { foundation: 0, core: 0, testprep: 0 }, reading: { foundation: 0, core: 0, testprep: 0 } };
 
-  for (let day = 1; day <= totalDays; day++) {
-    const phase = getPhase(day, totalDays);
-    const dayTasks = [];
-
-    if (focusMath && focusReading) {
-      const mp = MATH_TASKS[phase];
-      const rp = READING_TASKS[phase];
-      dayTasks.push(mp[idx.math[phase] % mp.length]);
-      idx.math[phase]++;
-      dayTasks.push(rp[idx.reading[phase] % rp.length]);
-      idx.reading[phase]++;
-      if (tasksPerDay >= 3) {
-        const extra = day % 2 === 0 ? mp[idx.math[phase] % mp.length] : rp[idx.reading[phase] % rp.length];
-        if (day % 2 === 0) idx.math[phase]++; else idx.reading[phase]++;
-        dayTasks.push(extra);
-      }
-    } else if (focusMath) {
-      const pool = MATH_TASKS[phase];
-      for (let i = 0; i < tasksPerDay; i++) {
-        dayTasks.push(pool[(idx.math[phase] + i) % pool.length]);
-      }
-      idx.math[phase] += tasksPerDay;
-    } else {
-      const pool = READING_TASKS[phase];
-      for (let i = 0; i < tasksPerDay; i++) {
-        dayTasks.push(pool[(idx.reading[phase] + i) % pool.length]);
-      }
-      idx.reading[phase] += tasksPerDay;
+  if (aiTasks?.length) {
+    // Use AI-generated tasks as the weekly template, repeat for all days
+    const weekTemplate = aiTasks; // tasks have a `day` field (1-7)
+    const templateDays = [...new Set(weekTemplate.map(t => t.day))].sort((a, b) => a - b);
+    const tasksPerTemplateDay = {};
+    for (const d of templateDays) {
+      tasksPerTemplateDay[d] = weekTemplate.filter(t => t.day === d);
     }
+    const templateLength = templateDays.length;
 
-    for (const task of dayTasks) {
-      allTasks.push({
-        user_id: userId,
-        day_number: day,
-        task_title: task.title,
-        task_type: task.task_type,
-        resource_name: task.resource_name,
-        resource_url: task.resource_url,
-        duration_minutes: task.duration_minutes,
-        completed: false,
-      });
+    for (let day = 1; day <= totalDays; day++) {
+      const templateDay = templateDays[(day - 1) % templateLength];
+      const dayTaskTemplates = tasksPerTemplateDay[templateDay];
+      for (const t of dayTaskTemplates) {
+        allTasks.push({
+          user_id: userId,
+          day_number: day,
+          task_title: t.title,
+          task_type: t.task_type,
+          resource_name: t.resource_name,
+          resource_url: t.resource_url ?? null,
+          duration_minutes: t.duration_minutes ?? 30,
+          completed: false,
+        });
+      }
+    }
+  } else {
+    // Fallback: static pools
+    const idx = { math: { foundation: 0, core: 0, testprep: 0 }, reading: { foundation: 0, core: 0, testprep: 0 } };
+
+    for (let day = 1; day <= totalDays; day++) {
+      const phase = getPhase(day, totalDays);
+      const dayTasks = [];
+
+      if (focusMath && focusReading) {
+        const mp = MATH_TASKS[phase];
+        const rp = READING_TASKS[phase];
+        dayTasks.push(mp[idx.math[phase] % mp.length]);
+        idx.math[phase]++;
+        dayTasks.push(rp[idx.reading[phase] % rp.length]);
+        idx.reading[phase]++;
+        if (tasksPerDay >= 3) {
+          const extra = day % 2 === 0 ? mp[idx.math[phase] % mp.length] : rp[idx.reading[phase] % rp.length];
+          if (day % 2 === 0) idx.math[phase]++; else idx.reading[phase]++;
+          dayTasks.push(extra);
+        }
+      } else if (focusMath) {
+        const pool = MATH_TASKS[phase];
+        for (let i = 0; i < tasksPerDay; i++) {
+          dayTasks.push(pool[(idx.math[phase] + i) % pool.length]);
+        }
+        idx.math[phase] += tasksPerDay;
+      } else {
+        const pool = READING_TASKS[phase];
+        for (let i = 0; i < tasksPerDay; i++) {
+          dayTasks.push(pool[(idx.reading[phase] + i) % pool.length]);
+        }
+        idx.reading[phase] += tasksPerDay;
+      }
+
+      for (const task of dayTasks) {
+        allTasks.push({
+          user_id: userId,
+          day_number: day,
+          task_title: task.title,
+          task_type: task.task_type,
+          resource_name: task.resource_name,
+          resource_url: task.resource_url,
+          duration_minutes: task.duration_minutes,
+          completed: false,
+        });
+      }
     }
   }
 

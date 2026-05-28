@@ -55,8 +55,9 @@ Never default to Russian just because this prompt is in Russian.
   б) Спроси про конкретные слабые темы: "В каких конкретно темах ты чаще всего ошибаешься? Например, в Math — это алгебра, геометрия, или word problems? В R&W — грамматика, чтение, или vocabulary?"
   в) Спроси про доступ к платным ресурсам: "Есть ли у тебя доступ к платным материалам — College Panda, Erica Meltzer, UWorld, или другим книгам?"
   г) Спроси про формат обучения: "Как тебе удобнее учиться — смотреть видео, читать книги/статьи, или сразу решать задачи?"
-  д) Спроси про расписание: "В какие дни ты обычно можешь заниматься — по будням, выходным, или каждый день? Утром, вечером?"
-  е) Если студент пишет "просто дай план" или не хочет отвечать — сгенерируй базовый план из данных профиля, добавив пометку "This is a starter plan — we can refine it anytime."
+  д) Спроси про расписание: "Сколько раз в неделю ты планируешь заниматься, и по сколько часов за раз?"
+  е) Спроси про формат чередования секций: "Как тебе удобнее — заниматься Math и R&W параллельно (чередуя их по дням или неделям), или сначала полностью закрыть одну секцию, потом другую (например, месяц Math, потом месяц R&W)?"
+  ж) Если студент пишет "просто дай план" или не хочет отвечать — сгенерируй базовый план из данных профиля, добавив пометку "This is a starter plan — we can refine it anytime."
 
   1. После уточняющих вопросов — дай высокоуровневый план: цель (балл + дата) + weekly overview с конкретными ресурсами
   2. Спроси: "Нужен детальный план на каждый день?"
@@ -129,7 +130,7 @@ PAID:
 Формат блока (студент его не увидит):
 
 [[PLAN_UPDATE]]
-{"target_score": 1400, "weak_sections": ["math", "reading"], "exam_timeframe": "2-4-months", "study_hours": "1-2", "plan_created": true, "plan_summary": "Краткое описание плана в 2-3 предложениях: цель, сроки, основные ресурсы."}
+{"target_score": 1400, "weak_sections": ["math"], "exam_timeframe": "2-4-months", "study_hours": "1-2", "plan_created": true, "plan_summary": "90-day plan focused on Math...", "plan_tasks": [{"day":1,"title":"Watch: Heart of Algebra","task_type":"video","resource_name":"Scalar Learning","resource_url":"https://www.youtube.com/@ScalarLearning","duration_minutes":25},{"day":1,"title":"Practice: Linear equations","task_type":"practice","resource_name":"Khan Academy SAT","resource_url":"https://www.khanacademy.org/sat","duration_minutes":30},{"day":2,"title":"Read: Algebra chapter","task_type":"read","resource_name":"College Panda Math","resource_url":"https://thecollegepanda.com/books/","duration_minutes":40}]}
 [[/PLAN_UPDATE]]
 
 Включай ТОЛЬКО поля которые действительно меняются. Допустимые значения:
@@ -140,7 +141,7 @@ PAID:
 - study_hours: "less-than-1" | "1-2" | "2-3" | "3-plus"
 - plan_created: true (добавляй ТОЛЬКО когда создаёшь или обновляешь конкретный план)
 - plan_summary: строка 2-3 предложения — суть плана (цель, сроки, ключевые ресурсы). Пиши на том языке на котором общается студент.
-- daily_tasks: массив из 2-4 задач на сегодня в формате JSON. Генерируй ТОЛЬКО когда создаёшь или обновляешь план. Каждая задача: {"id":"t1","title":"Название ресурса","action":"Что именно сделать","duration":"X min","color":"blue"|"green"|"teal"|"purple"}`;
+- plan_tasks: ОБЯЗАТЕЛЬНО при plan_created=true. Массив задач на первую неделю (дни 1-7), по 2-3 задачи на день. Каждая задача: {"day":N,"title":"Конкретное название задачи","task_type":"video"|"practice"|"read","resource_name":"Название ресурса из списка выше","resource_url":"URL ресурса","duration_minutes":N}. Используй ТОЛЬКО ресурсы из одобренного списка выше. task_type: "video" для YouTube, "practice" для практики/тестов, "read" для книг/статей.`;
 
 // ── Student profile → readable context ───────────────────────────────────────
 const SCORE_LABELS = {
