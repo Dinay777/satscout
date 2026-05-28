@@ -12,7 +12,13 @@ const concurrencyGuard = require('./middleware/concurrency');
 const app = express();
 
 app.use(cors({
-  origin: process.env.FRONTEND_URL || 'http://localhost:3000',
+  origin: (origin, callback) => {
+    if (!origin || origin === 'http://localhost:3000' || origin.includes('vercel.app')) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
   methods: ['GET', 'POST'],
 }));
 app.use(express.json({ limit: '20kb' }));
