@@ -177,6 +177,7 @@ function AIChatBuddy({ language, user, profile, onProfileUpdate, setCurrentPage 
               if (parsed.planUpdate.plan_created) setPlanJustCreated(true);
               // Extract plan_tasks before saving to DB (not a DB column)
               const { plan_tasks, ...profileUpdate } = parsed.planUpdate;
+              console.log('[Plan] plan_tasks received:', plan_tasks?.length ?? 'NONE', plan_tasks?.[0]);
               if (plan_tasks?.length) planTasksRef.current = plan_tasks;
               supabase
                 .from('profiles')
