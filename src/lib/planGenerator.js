@@ -130,20 +130,14 @@ export async function generateAndSavePlan(profile, userId) {
     }
   }
 
-  console.log('[Plan] Total tasks to insert:', allTasks.length, '| userId:', userId);
-
   for (let i = 0; i < allTasks.length; i += 100) {
-    const { error } = await supabase.from('user_tasks').insert(allTasks.slice(i, i + 100));
-    if (error) console.error('[Plan] Insert error batch', i, error);
-    else console.log('[Plan] Inserted batch', i, '-', Math.min(i + 100, allTasks.length));
+    await supabase.from('user_tasks').insert(allTasks.slice(i, i + 100));
   }
 
   const today = new Date().toISOString().slice(0, 10);
-  const { error: profileErr } = await supabase.from('profiles')
+  await supabase.from('profiles')
     .update({ plan_start_date: today, plan_created: true })
     .eq('user_id', userId);
-  if (profileErr) console.error('[Plan] Profile update error:', profileErr);
-  else console.log('[Plan] plan_start_date set to', today);
 
   return totalDays;
 }
