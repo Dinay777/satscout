@@ -192,10 +192,10 @@ function AIChatBuddy({ language, user, profile, onProfileUpdate, setCurrentPage 
             const parsed = JSON.parse(data);
             if (parsed.error) throw new Error(parsed.error);
 
-            // Server planUpdate event (kept as fallback)
-            if (parsed.planUpdate && user && onProfileUpdate) {
-              const { plan_tasks, ...profileUpdate } = parsed.planUpdate;
-              if (!planTasksRef.current && plan_tasks?.length) planTasksRef.current = plan_tasks;
+            // Server planUpdate event (kept as fallback for plan_tasks only)
+            if (parsed.planUpdate && !planTasksRef.current) {
+              const { plan_tasks } = parsed.planUpdate;
+              if (plan_tasks?.length) planTasksRef.current = plan_tasks;
             }
 
             if (parsed.text) {
