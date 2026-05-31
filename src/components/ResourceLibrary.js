@@ -42,37 +42,57 @@ const text = {
   }
 };
 
-function ResourceLibrary({ language }) {
+function ResourceLibrary({ language, profile }) {
   const t = text[language];
+  const ru = language === 'ru';
+  const [forYouActive, setForYouActive] = useState(!!profile?.plan_created);
   const [sectionFilter, setSectionFilter] = useState('All');
   const [typeFilter, setTypeFilter] = useState('All');
-  const [difficultyFilter, setDifficultyFilter] = useState('All');
   const [priceFilter, setPriceFilter] = useState('All');
   const [searchQuery, setSearchQuery] = useState('');
 
+  // Determine which sections match the student's weak areas
+  const studentSections = useMemo(() => {
+    if (!profile?.weak_sections) return [];
+    const s = [];
+    if (profile.weak_sections.includes('math')) s.push('Math');
+    if (profile.weak_sections.includes('reading')) s.push('Reading', 'Writing');
+    return s;
+  }, [profile]);
+
+  const isForYou = (r) => {
+    if (!studentSections.length) return false;
+    return r.section.some(s => studentSections.includes(s));
+  };
+
   const filteredResources = useMemo(() => {
-    return resources.filter(r => {
+    let list = resources.filter(r => {
+      if (forYouActive && studentSections.length) {
+        if (!isForYou(r)) return false;
+      }
       const matchesSection = sectionFilter === 'All' || r.section.includes(sectionFilter);
       const matchesType = typeFilter === 'All' || r.type === typeFilter;
-      const matchesDifficulty = difficultyFilter === 'All' || r.difficulty === difficultyFilter;
       const matchesPrice = priceFilter === 'All' || r.price === priceFilter;
-      const matchesSearch = searchQuery === '' || 
+      const matchesSearch = searchQuery === '' ||
         r.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
         r.description.toLowerCase().includes(searchQuery.toLowerCase());
-      return matchesSection && matchesType && matchesDifficulty && matchesPrice && matchesSearch;
+      return matchesSection && matchesType && matchesPrice && matchesSearch;
     });
-  }, [sectionFilter, typeFilter, difficultyFilter, priceFilter, searchQuery]);
+    // Recommended first when For You is active
+    if (forYouActive) list = [...list].sort((a, b) => (b.recommended ? 1 : 0) - (a.recommended ? 1 : 0));
+    return list;
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sectionFilter, typeFilter, priceFilter, searchQuery, forYouActive, studentSections]);
 
   const clearFilters = () => {
     setSectionFilter('All');
     setTypeFilter('All');
-    setDifficultyFilter('All');
     setPriceFilter('All');
     setSearchQuery('');
   };
 
-  const hasActiveFilters = sectionFilter !== 'All' || typeFilter !== 'All' || 
-    difficultyFilter !== 'All' || priceFilter !== 'All' || searchQuery !== '';
+  const hasActiveFilters = sectionFilter !== 'All' || typeFilter !== 'All' ||
+    priceFilter !== 'All' || searchQuery !== '';
 
   const colorMap = {
     'Book': 'orange',
@@ -91,6 +111,25 @@ function ResourceLibrary({ language }) {
           <h1 className="library__title">{t.title}</h1>
           <p className="library__subtitle">{t.subtitle}</p>
         </div>
+
+        {/* For You toggle — only for logged-in students with a plan */}
+        {profile?.plan_created && studentSections.length > 0 && (
+          <div className="library__for-you-bar">
+            <button
+              className={`library__for-you-btn ${forYouActive ? 'library__for-you-btn--active' : ''}`}
+              onClick={() => setForYouActive(v => !v)}
+            >
+              ✦ {ru ? 'Для тебя' : 'For You'}
+            </button>
+            {forYouActive && (
+              <span className="library__for-you-hint">
+                {ru
+                  ? `Ресурсы по твоим слабым местам: ${studentSections.join(', ')}`
+                  : `Resources matching your focus: ${studentSections.join(', ')}`}
+              </span>
+            )}
+          </div>
+        )}
 
         <div className="library__search">
           <span className="library__search-icon">🔍</span>
@@ -170,9 +209,12 @@ function ResourceLibrary({ language }) {
         ) : (
           <div className="library__grid">
             {filteredResources.map(resource => (
-              <div className={`lib-card lib-card--${colorMap[resource.type] || 'blue'}`} key={resource.id}>
+              <div className={`lib-card lib-card--${colorMap[resource.type] || 'blue'} ${!forYouActive && isForYou(resource) ? 'lib-card--for-you' : ''}`} key={resource.id}>
                 {resource.recommended && (
                   <div className="lib-card__recommended">{t.recommended}</div>
+                )}
+                {!forYouActive && isForYou(resource) && (
+                  <div className="lib-card__for-you-badge">✦ {ru ? 'Для тебя' : 'For You'}</div>
                 )}
                 <div className="lib-card__top">
                   <span className="lib-card__type">{resource.type}</span>

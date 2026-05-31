@@ -147,7 +147,7 @@ function App() {
       )}
 
       {currentPage === 'resources' && (
-        <ResourceLibrary language={language} />
+        <ResourceLibrary language={language} profile={profile} />
       )}
 
       {/* Keep mounted to preserve chat history — hide with CSS when not active */}

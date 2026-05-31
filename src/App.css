@@ -4652,3 +4652,60 @@ button {
 }
 
 .progress-streak__msg--good { color: var(--green); font-weight: 600; }
+
+/* ── Resource Library: For You ── */
+.library__for-you-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+}
+
+.library__for-you-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 18px;
+  border-radius: 99px;
+  border: 1.5px solid var(--blue);
+  background: white;
+  color: var(--blue);
+  font-size: 0.88rem;
+  font-weight: 700;
+  font-family: var(--font-body);
+  cursor: pointer;
+  transition: all var(--transition);
+}
+
+.library__for-you-btn--active {
+  background: var(--blue);
+  color: white;
+}
+
+.library__for-you-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(59,130,246,0.2);
+}
+
+.library__for-you-hint {
+  font-size: 0.8rem;
+  color: var(--gray-500);
+}
+
+.lib-card__for-you-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: var(--blue);
+  background: rgba(59,130,246,0.1);
+  border-radius: 6px;
+  padding: 2px 8px;
+  margin-bottom: 8px;
+}
+
+.lib-card--for-you {
+  border-color: rgba(59,130,246,0.3);
+}
