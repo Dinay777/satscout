@@ -167,27 +167,35 @@ function AIChatBuddy({ language, user, profile, onProfileUpdate, setCurrentPage 
             setIsStreaming(false);
             const finalText = aiContent.replace(PLAN_UPDATE_RE, '').trim();
             if (finalText) saveMessage('assistant', finalText);
+
+            // Parse [[PLAN_UPDATE]] directly from accumulated text (more reliable than SSE event)
+            const planMatch = aiContent.match(/\[\[PLAN_UPDATE\]\]([\s\S]*?)\[\[\/PLAN_UPDATE\]\]/);
+            if (planMatch) {
+              try {
+                const planUpdate = JSON.parse(planMatch[1].trim());
+                if (planUpdate.plan_created) setPlanJustCreated(true);
+                const { plan_tasks, ...profileUpdate } = planUpdate;
+                console.log('[Plan] plan_tasks parsed on client:', plan_tasks?.length ?? 'NONE');
+                if (plan_tasks?.length) planTasksRef.current = plan_tasks;
+                if (user && onProfileUpdate) {
+                  supabase.from('profiles').update(profileUpdate).eq('user_id', user.id)
+                    .select().single()
+                    .then(({ data: updated }) => { if (updated) onProfileUpdate(updated); });
+                }
+              } catch (e) {
+                console.error('[Plan] parse error:', e.message);
+              }
+            }
             continue;
           }
           try {
             const parsed = JSON.parse(data);
             if (parsed.error) throw new Error(parsed.error);
 
+            // Server planUpdate event (kept as fallback)
             if (parsed.planUpdate && user && onProfileUpdate) {
-              if (parsed.planUpdate.plan_created) setPlanJustCreated(true);
-              // Extract plan_tasks before saving to DB (not a DB column)
               const { plan_tasks, ...profileUpdate } = parsed.planUpdate;
-              console.log('[Plan] plan_tasks received:', plan_tasks?.length ?? 'NONE', plan_tasks?.[0]);
-              if (plan_tasks?.length) planTasksRef.current = plan_tasks;
-              supabase
-                .from('profiles')
-                .update(profileUpdate)
-                .eq('user_id', user.id)
-                .select()
-                .single()
-                .then(({ data: updated }) => {
-                  if (updated) onProfileUpdate(updated);
-                });
+              if (!planTasksRef.current && plan_tasks?.length) planTasksRef.current = plan_tasks;
             }
 
             if (parsed.text) {
