@@ -172,7 +172,7 @@ const HOURS_LABELS = {
   '5-plus': '5+ hours/week',
 };
 
-function formatStudentContext(profile) {
+function formatStudentContext(profile, taskStats) {
   if (!profile) return '';
   const sections = (profile.weak_sections || [])
     .map(s => s === 'math' ? 'Math' : 'Reading & Writing')
@@ -182,18 +182,35 @@ function formatStudentContext(profile) {
     ? `Created\nPlan summary: ${profile.plan_summary ?? 'No summary saved'}`
     : 'Not yet created — student has not built a plan with you yet';
 
+  const startScore = profile.current_score_actual ?? 800;
+  const targetScore = profile.target_score ?? 1400;
+
+  let progressBlock = '';
+  if (taskStats && profile.plan_created) {
+    const { total, completed, dayNum } = taskStats;
+    const pct = total > 0 ? Math.round((completed / total) * 100) : 0;
+    const estimatedScore = total > 0
+      ? Math.round(startScore + (targetScore - startScore) * (completed / total))
+      : startScore;
+    progressBlock = `
+Current day: Day ${dayNum} of the plan
+Tasks completed: ${completed} / ${total} (${pct}% of full plan)
+Estimated current score: ~${estimatedScore}
+Current streak: ${profile.current_streak ?? 0} days in a row`;
+  }
+
   return `
 [STUDENT PROFILE]
-Target score: ${profile.target_score ?? 'Not set'}
-Current score: ${profile.current_score_actual ?? SCORE_LABELS[profile.current_score] ?? profile.current_score ?? 'Unknown'}
+Target score: ${targetScore}
+Current score: ${profile.current_score_actual ?? SCORE_LABELS[profile.current_score] ?? 'Unknown'}
 Time until exam: ${TIMEFRAME_LABELS[profile.exam_timeframe] ?? profile.exam_timeframe ?? 'Unknown'}
 Focus areas: ${sections}
 Study time: ${HOURS_LABELS[profile.study_hours] ?? profile.study_hours ?? 'Unknown'}
-Study plan status: ${planStatus}
+Study plan status: ${planStatus}${progressBlock}
 [/STUDENT PROFILE]
 
-Use this profile to personalise every response. Reference their goal, timeline and weak areas when relevant. Do not repeat the profile back to the student — just use it to give tailored advice.
-If the student asks about their plan and "Study plan status" says "Created", refer to the plan summary above. If it says "Not yet created", offer to build one.`;
+Use this profile to personalise every response. Reference their goal, timeline, weak areas and current progress when relevant. Do not repeat the profile back — just use it to give tailored advice.
+If "Study plan status" says "Created", refer to the plan summary. If the student is behind on tasks or streak is 0, acknowledge it supportively.`;
 }
 
 // ── Input validation ──────────────────────────────────────────────────────────
@@ -219,7 +236,7 @@ app.get('/api/health', (req, res) => {
 });
 
 app.post('/api/chat', rateLimiter, concurrencyGuard(queue), async (req, res) => {
-  const { messages, profile } = req.body;
+  const { messages, profile, taskStats } = req.body;
   console.log('[profile received]', JSON.stringify(profile));
 
   if (!validateMessages(messages)) {
@@ -241,7 +258,7 @@ app.post('/api/chat', rateLimiter, concurrencyGuard(queue), async (req, res) => 
         process.stdout.write('\n[AI] ');
         let fullResponse = '';
 
-        const systemPrompt = SYSTEM_PROMPT + formatStudentContext(profile);
+        const systemPrompt = SYSTEM_PROMPT + formatStudentContext(profile, taskStats);
         provider.stream(messages, systemPrompt, {
           onChunk: (text) => {
             fullResponse += text;
@@ -255,12 +272,19 @@ app.post('/api/chat', rateLimiter, concurrencyGuard(queue), async (req, res) => 
             // Extract plan update block before sending [DONE]
             const planMatch = fullResponse.match(/\[\[PLAN_UPDATE\]\]([\s\S]*?)\[\[\/PLAN_UPDATE\]\]/);
             if (planMatch) {
+              const raw = planMatch[1].trim();
+              console.log('[PLAN_UPDATE raw]', raw.slice(0, 300));
               try {
-                const planUpdate = JSON.parse(planMatch[1].trim());
+                const planUpdate = JSON.parse(raw);
+                console.log('[PLAN_UPDATE parsed] plan_tasks count:', planUpdate.plan_tasks?.length ?? 'NONE');
                 if (!res.writableEnded) {
                   res.write(`data: ${JSON.stringify({ planUpdate })}\n\n`);
                 }
-              } catch (_) {}
+              } catch (e) {
+                console.error('[PLAN_UPDATE parse error]', e.message, '\nRaw:', raw.slice(0, 500));
+              }
+            } else {
+              console.log('[PLAN_UPDATE] block not found in response');
             }
 
             if (!res.writableEnded) {

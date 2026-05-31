@@ -133,12 +133,28 @@ function AIChatBuddy({ language, user, profile, onProfileUpdate, setCurrentPage 
     // Skip welcome message (index 0) — UI only, not sent to AI
     const apiMessages = updatedMessages.slice(1).map(({ role, content }) => ({ role, content }));
 
+    // Fetch live task stats to give AI real progress context
+    let taskStats = null;
+    if (user && profile?.plan_created) {
+      const { data: allTasks } = await supabase
+        .from('user_tasks').select('completed').eq('user_id', user.id);
+      if (allTasks) {
+        const total = allTasks.length;
+        const completed = allTasks.filter(t => t.completed).length;
+        const planStartDate = latestProfileRef.current.plan_start_date;
+        const dayNum = planStartDate
+          ? Math.max(1, Math.floor((Date.now() - new Date(planStartDate).getTime()) / 86400000) + 1)
+          : 1;
+        taskStats = { total, completed, dayNum };
+      }
+    }
+
     try {
       const API_BASE = process.env.REACT_APP_API_URL || '';
       const response = await fetch(`${API_BASE}/api/chat`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ messages: apiMessages, language, profile }),
+        body: JSON.stringify({ messages: apiMessages, language, profile, taskStats }),
       });
 
       if (!response.ok) throw new Error(`Server error ${response.status}`);
