@@ -60,8 +60,28 @@ function AIChatBuddy({ language, user, profile, onProfileUpdate, setCurrentPage 
   const latestProfileRef = useRef(profile);
   const planTasksRef = useRef(null);
   const scheduledDaysRef = useRef(null);
+  const aiContentRef = useRef('');       // mirrors aiContent for cross-tab-switch recovery
+  const isStreamingRef = useRef(false);  // mirrors isStreaming state
 
   const messagesContainerRef = useRef(null);
+
+  // Restore streaming content when user returns to this tab
+  useEffect(() => {
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible' && isStreamingRef.current && aiContentRef.current) {
+        const displayText = aiContentRef.current.replace(PLAN_UPDATE_RE, '').trim();
+        setMessages(prev => {
+          const last = prev[prev.length - 1];
+          if (last?.role === 'assistant') {
+            return [...prev.slice(0, -1), { ...last, content: displayText }];
+          }
+          return prev;
+        });
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibility);
+    return () => document.removeEventListener('visibilitychange', handleVisibility);
+  }, []);
 
   // Keep ref in sync so savePlan always has latest profile
   useEffect(() => { latestProfileRef.current = profile; }, [profile]);
@@ -170,6 +190,8 @@ function AIChatBuddy({ language, user, profile, onProfileUpdate, setCurrentPage 
       let buffer = '';
       let aiContent = '';
       let firstTextReceived = false;
+      aiContentRef.current = '';
+      isStreamingRef.current = true;
 
       // Keep isLoading=true (dots visible) until first real text arrives — no blank white bubble
       while (true) {
@@ -184,6 +206,7 @@ function AIChatBuddy({ language, user, profile, onProfileUpdate, setCurrentPage 
           if (!line.startsWith('data: ')) continue;
           const data = line.slice(6).trim();
           if (data === '[DONE]') {
+            isStreamingRef.current = false;
             setIsStreaming(false);
             const finalText = aiContent.replace(PLAN_UPDATE_RE, '').trim();
             if (finalText) saveMessage('assistant', finalText);
@@ -218,6 +241,7 @@ function AIChatBuddy({ language, user, profile, onProfileUpdate, setCurrentPage 
 
             if (parsed.text) {
               aiContent += parsed.text;
+              aiContentRef.current = aiContent;
               const displayText = aiContent.replace(PLAN_UPDATE_RE, '').trim();
 
               if (!firstTextReceived) {
@@ -239,6 +263,7 @@ function AIChatBuddy({ language, user, profile, onProfileUpdate, setCurrentPage 
         }
       }
     } catch (error) {
+      isStreamingRef.current = false;
       setIsLoading(false);
       setIsStreaming(false);
       const errorMsg = language === 'ru'
