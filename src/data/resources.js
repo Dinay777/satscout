@@ -483,6 +483,51 @@ const resources = [
     tags: ["Vocabulary", "Flashcards", "Quick Practice"],
     recommended: false
   },
+  {
+    id: 32,
+    title: "Ivy Global Digital SAT Practice Tests",
+    type: "Practice Test",
+    section: ["Reading", "Writing", "Math"],
+    difficulty: "All Levels",
+    price: "Free",
+    priceAmount: "Free",
+    rating: 4.6,
+    description: "High-quality unofficial practice tests designed to mirror the real Digital SAT format. Widely used by tutors and students as supplementary material beyond the 8 official Bluebook tests.",
+    descriptionRu: "Качественные неофициальные тесты, созданные по образцу Digital SAT. Широко используются репетиторами как дополнение к 8 официальным тестам Bluebook.",
+    url: "https://ivyglobal.com/study/digital-sat",
+    tags: ["Practice Tests", "Full Test", "Digital SAT"],
+    recommended: true
+  },
+  {
+    id: 33,
+    title: "r/SAT Community Wiki & Resource Megathread",
+    type: "Community",
+    section: ["Reading", "Writing", "Math"],
+    difficulty: "All Levels",
+    price: "Free",
+    priceAmount: "Free",
+    rating: 4.5,
+    description: "The largest SAT student community. The wiki and pinned megathread contain links to free practice tests (including QAS releases), score calculators, and strategy guides curated by high-scorers.",
+    descriptionRu: "Крупнейшее сообщество SAT-студентов. В вики и закреплённых постах — ссылки на бесплатные тесты, калькуляторы баллов и гайды от высокобалльников.",
+    url: "https://www.reddit.com/r/Sat/wiki/index/",
+    tags: ["Community", "Free Tests", "QAS", "Study Tips"],
+    recommended: false
+  },
+  {
+    id: 34,
+    title: "Princeton Review: Free SAT Practice Test",
+    type: "Practice Test",
+    section: ["Reading", "Writing", "Math"],
+    difficulty: "All Levels",
+    price: "Free",
+    priceAmount: "Free",
+    rating: 4.3,
+    description: "A free full-length proctored SAT practice test with detailed score reporting. Good for an initial diagnostic or additional timed practice. Requires free account registration.",
+    descriptionRu: "Бесплатный полный тест SAT с детальным отчётом по баллам. Хорош для первичной диагностики или дополнительной практики в условиях времени.",
+    url: "https://www.princetonreview.com/college/free-sat-practice-test",
+    tags: ["Practice Tests", "Full Test", "Diagnostic"],
+    recommended: false
+  },
 ];
 
 export default resources;
