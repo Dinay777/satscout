@@ -169,11 +169,9 @@ function AIChatBuddy({ language, user, profile, onProfileUpdate, setCurrentPage 
       const decoder = new TextDecoder();
       let buffer = '';
       let aiContent = '';
+      let firstTextReceived = false;
 
-      setMessages(prev => [...prev, { role: 'assistant', content: '' }]);
-      setIsLoading(false);
-      setIsStreaming(true);
-
+      // Keep isLoading=true (dots visible) until first real text arrives — no blank white bubble
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
@@ -190,7 +188,6 @@ function AIChatBuddy({ language, user, profile, onProfileUpdate, setCurrentPage 
             const finalText = aiContent.replace(PLAN_UPDATE_RE, '').trim();
             if (finalText) saveMessage('assistant', finalText);
 
-            // Parse [[PLAN_UPDATE]] directly from accumulated text (more reliable than SSE event)
             const planMatch = aiContent.match(/\[\[PLAN_UPDATE\]\]([\s\S]*?)\[\[\/PLAN_UPDATE\]\]/);
             if (planMatch) {
               try {
@@ -214,7 +211,6 @@ function AIChatBuddy({ language, user, profile, onProfileUpdate, setCurrentPage 
             const parsed = JSON.parse(data);
             if (parsed.error) throw new Error(parsed.error);
 
-            // Server planUpdate event (kept as fallback for plan_tasks only)
             if (parsed.planUpdate && !planTasksRef.current) {
               const { plan_tasks } = parsed.planUpdate;
               if (plan_tasks?.length) planTasksRef.current = plan_tasks;
@@ -223,10 +219,19 @@ function AIChatBuddy({ language, user, profile, onProfileUpdate, setCurrentPage 
             if (parsed.text) {
               aiContent += parsed.text;
               const displayText = aiContent.replace(PLAN_UPDATE_RE, '').trim();
-              setMessages(prev => [
-                ...prev.slice(0, -1),
-                { role: 'assistant', content: displayText },
-              ]);
+
+              if (!firstTextReceived) {
+                // First text: switch from loading dots to streaming bubble in one render
+                firstTextReceived = true;
+                setIsLoading(false);
+                setIsStreaming(true);
+                setMessages(prev => [...prev, { role: 'assistant', content: displayText }]);
+              } else {
+                setMessages(prev => [
+                  ...prev.slice(0, -1),
+                  { role: 'assistant', content: displayText },
+                ]);
+              }
             }
           } catch (e) {
             if (e.message && !e.message.includes('JSON')) throw e;
