@@ -215,18 +215,34 @@ function AIChatBuddy({ language, user, profile, onProfileUpdate, setCurrentPage 
             if (planMatch) {
               try {
                 const planUpdate = JSON.parse(planMatch[1].trim());
+                console.log('[Plan] parsed:', JSON.stringify(planUpdate).slice(0, 400));
                 if (planUpdate.plan_created) setPlanJustCreated(true);
                 const { plan_tasks, sessions_per_week, ...profileUpdate } = planUpdate;
                 if (plan_tasks?.length) planTasksRef.current = plan_tasks;
+
+                // Fallback: if AI omitted scheduled_days but gave sessions_per_week, generate defaults
+                if (!profileUpdate.scheduled_days?.length && sessions_per_week) {
+                  const defaults = { 1:[3], 2:[2,5], 3:[1,3,5], 4:[1,2,4,5], 5:[1,2,3,4,5], 6:[1,2,3,4,5,6], 7:[0,1,2,3,4,5,6] };
+                  profileUpdate.scheduled_days = defaults[sessions_per_week] ?? [1,3,5];
+                  console.log('[Plan] generated default scheduled_days:', profileUpdate.scheduled_days);
+                }
+
                 if (profileUpdate.scheduled_days?.length) scheduledDaysRef.current = profileUpdate.scheduled_days;
+                console.log('[Plan] scheduledDaysRef set to:', scheduledDaysRef.current);
+
                 if (user && onProfileUpdate) {
                   supabase.from('profiles').update(profileUpdate).eq('user_id', user.id)
                     .select().single()
-                    .then(({ data: updated }) => { if (updated) onProfileUpdate(updated); });
+                    .then(({ data: updated, error }) => {
+                      console.log('[Plan] profile update result:', updated, error);
+                      if (updated) onProfileUpdate(updated);
+                    });
                 }
               } catch (e) {
                 console.error('[Plan] parse error:', e.message);
               }
+            } else {
+              console.warn('[Plan] PLAN_UPDATE block not found in response');
             }
             continue;
           }
