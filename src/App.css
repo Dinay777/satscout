@@ -1393,7 +1393,7 @@ button {
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  background: var(--gray-300);
+  background: var(--gray-400);
   animation: typing 1.4s infinite;
 }
 
