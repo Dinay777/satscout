@@ -212,8 +212,10 @@ export async function generateAndSavePlan(profile, userId, aiTasks = null, sched
   }
 
   const today = new Date().toISOString().slice(0, 10);
+  const profileUpdate = { plan_start_date: today, plan_created: true };
+  if (scheduledDays?.length) profileUpdate.scheduled_days = scheduledDays;
   const { error: profileErr } = await supabase.from('profiles')
-    .update({ plan_start_date: today, plan_created: true })
+    .update(profileUpdate)
     .eq('user_id', userId);
   if (profileErr) throw new Error(`Profile update failed: ${profileErr.message}`);
 
