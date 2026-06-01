@@ -3,6 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "dependencies": {
+    "@anthropic-ai/claude-code": "^2.1.158",
     "@anthropic-ai/sdk": "^0.94.0",
     "@supabase/supabase-js": "^2.105.3",
     "@testing-library/dom": "^10.4.1",
@@ -12,10 +13,12 @@
     "cors": "^2.8.6",
     "dotenv": "^17.4.2",
     "express": "^5.2.1",
+    "node-telegram-bot-api": "^0.67.0",
     "react": "^19.2.5",
     "react-dom": "^19.2.5",
     "react-scripts": "5.0.1",
     "recharts": "^3.8.1",
+    "resend": "^6.12.4",
     "web-vitals": "^2.1.4"
   },
   "proxy": "http://localhost:3001",

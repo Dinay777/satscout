@@ -14,17 +14,16 @@ const TYPE_META = {
   practice: { icon: '✏️', label: 'Practice', color: 'green'  },
 };
 
-const WEAK_SPOT_MAP = {
-  math: [
-    { name: 'Algebra & Functions' },
-    { name: 'Data Analysis' },
-    { name: 'Advanced Math' },
-  ],
-  reading: [
-    { name: 'Standard English Conventions' },
-    { name: 'Reading Comprehension' },
-    { name: 'Vocabulary in Context' },
-  ],
+const MATH_TOPICS = {
+  foundation: ['Linear Equations', 'Ratios & Proportions', 'Percentages & Word Problems', 'Basic Algebra'],
+  intermediate: ['Systems of Equations', 'Quadratic Functions', 'Data & Statistics', 'Scatterplots'],
+  advanced: ['Advanced Algebra', 'Geometry & Trigonometry', 'Complex Word Problems', 'Functions & Graphs'],
+};
+
+const READING_TOPICS = {
+  foundation: ['Main Idea & Purpose', 'Basic Grammar Rules', 'Punctuation', 'Subject-Verb Agreement'],
+  intermediate: ['Transitions & Rhetoric', 'Inference Questions', 'Vocabulary in Context', 'Sentence Structure'],
+  advanced: ['Command of Evidence', 'Craft & Structure', 'Cross-Text Connections', 'Rhetorical Analysis'],
 };
 
 function getDayNumber(planStartDate) {
@@ -53,9 +52,14 @@ function Dashboard({ user, profile, language, setCurrentPage, onProfileUpdate })
   const streak     = profile.current_streak ?? 0;
 
   const activeDay = selectedDay ?? dayNum;
-  // Show 1 on day 1 before any task is completed; gray if streak was lost
-  const displayStreak = streak === 0 && !profile.last_active_date && profile.plan_created ? 1 : streak;
-  const streakLost    = streak === 0 && !!profile.last_active_date;
+
+  const today = new Date().toISOString().slice(0, 10);
+  const isDay1 = profile.plan_start_date === today;
+  const activeToday = profile.last_active_date === today;
+  // Show 1 on the very first day as encouragement (plan just created, nothing marked yet)
+  const displayStreak = (streak === 0 && isDay1 && !activeToday) ? 1 : streak;
+  // Gray if not active today, unless it's literally day 1 with no prior activity
+  const streakLost = !activeToday && profile.plan_created && !isDay1;
 
   const completionRate = allTasksStats.total > 0 ? allTasksStats.completed / allTasksStats.total : 0;
   const estimatedScore = Math.round(startScore + (targetScore - startScore) * completionRate);
@@ -185,10 +189,15 @@ function Dashboard({ user, profile, language, setCurrentPage, onProfileUpdate })
   const isViewingToday = activeDay === dayNum;
   const shownTasks = isViewingToday ? tasks : (weekMap[activeDay]?.tasks ?? []);
 
+  const scoreLevel = startScore < 1000 ? 'foundation' : startScore < 1200 ? 'intermediate' : 'advanced';
   const weakSpots = [
-    ...(profile.weak_sections?.includes('math') ? WEAK_SPOT_MAP.math : []),
-    ...(profile.weak_sections?.includes('reading') ? WEAK_SPOT_MAP.reading : []),
-  ].slice(0, 3);
+    ...(profile.weak_sections?.includes('math')
+      ? MATH_TOPICS[scoreLevel].slice(0, 2).map(name => ({ name, section: 'Math' }))
+      : []),
+    ...(profile.weak_sections?.includes('reading')
+      ? READING_TOPICS[scoreLevel].slice(0, 2).map(name => ({ name, section: 'R&W' }))
+      : []),
+  ].slice(0, 4);
 
   return (
     <div className="dashboard">
@@ -380,7 +389,10 @@ function Dashboard({ user, profile, language, setCurrentPage, onProfileUpdate })
                 {weakSpots.map((spot, i) => (
                   <div key={i} className="weak-item">
                     <div className="weak-item__header">
-                      <span className="weak-item__name">{spot.name}</span>
+                      <div>
+                        <span className="weak-item__section">{spot.section}</span>
+                        <span className="weak-item__name">{spot.name}</span>
+                      </div>
                       <button
                         className="weak-item__btn"
                         onClick={() => setCurrentPage('ai-buddy')}

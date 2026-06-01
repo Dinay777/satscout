@@ -319,11 +319,17 @@ function AIChatBuddy({ language, user, profile, onProfileUpdate, setCurrentPage 
                         <div className="chat-message__avatar">🤖</div>
                       )}
                       <div className={`chat-message__bubble${isLastAssistant ? ' chat-message__bubble--streaming' : ''}`}>
-                        <div
-                          className="chat-message__text"
-                          dangerouslySetInnerHTML={{ __html: formatMessage(msg.content) }}
-                        />
-                        {isLastAssistant && <span className="chat-cursor" />}
+                        {isLastAssistant && !msg.content ? (
+                          <div className="chat-typing"><span></span><span></span><span></span></div>
+                        ) : (
+                          <>
+                            <div
+                              className="chat-message__text"
+                              dangerouslySetInnerHTML={{ __html: formatMessage(msg.content) }}
+                            />
+                            {isLastAssistant && msg.content && <span className="chat-cursor" />}
+                          </>
+                        )}
                       </div>
                     </div>
                   );

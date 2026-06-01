@@ -4318,6 +4318,16 @@ button {
   justify-content: space-between;
 }
 
+.weak-item__section {
+  display: block;
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--blue);
+  margin-bottom: 2px;
+}
+
 .weak-item__name {
   font-size: 0.88rem;
   font-weight: 600;
