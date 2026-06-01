@@ -154,3 +154,100 @@ export function getTodaysTasks(profile, language) {
   ];
   return tasks;
 }
+
+const DAY_NAMES_EN = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+const DAY_NAMES_RU = ['Воскресенье','Понедельник','Вторник','Среда','Четверг','Пятница','Суббота'];
+export const DAY_SHORT_EN = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+export const DAY_SHORT_RU = ['Вс','Пн','Вт','Ср','Чт','Пт','Сб'];
+
+function countSessionsUpTo(date, planStartDate, scheduledDays) {
+  const target = new Date(date); target.setHours(0,0,0,0);
+  const start = new Date(planStartDate); start.setHours(0,0,0,0);
+  let count = 0;
+  const cur = new Date(start);
+  while (cur <= target) {
+    if (scheduledDays.includes(cur.getDay())) count++;
+    cur.setDate(cur.getDate() + 1);
+  }
+  return count;
+}
+
+export function getTodaySessionNumber(planStartDate, scheduledDays) {
+  if (!planStartDate) return 1;
+  if (!scheduledDays?.length) {
+    return Math.max(1, Math.floor((Date.now() - new Date(planStartDate).getTime()) / 86400000) + 1);
+  }
+  const today = new Date(); today.setHours(0,0,0,0);
+  if (!scheduledDays.includes(today.getDay())) return null;
+  return countSessionsUpTo(today, planStartDate, scheduledDays);
+}
+
+export function getSessionNumForDate(dateStr, planStartDate, scheduledDays) {
+  if (!planStartDate || !scheduledDays?.length) return null;
+  const date = new Date(dateStr); date.setHours(0,0,0,0);
+  const start = new Date(planStartDate); start.setHours(0,0,0,0);
+  if (date < start) return null;
+  if (!scheduledDays.includes(date.getDay())) return null;
+  return countSessionsUpTo(date, planStartDate, scheduledDays);
+}
+
+export function getLastSessionDate(planStartDate, scheduledDays) {
+  if (!scheduledDays?.length) return new Date().toISOString().slice(0,10);
+  const today = new Date(); today.setHours(0,0,0,0);
+  const start = new Date(planStartDate || today); start.setHours(0,0,0,0);
+  const cur = new Date(today);
+  while (cur >= start) {
+    if (scheduledDays.includes(cur.getDay())) return cur.toISOString().slice(0,10);
+    cur.setDate(cur.getDate() - 1);
+  }
+  return null;
+}
+
+export function getPrevSessionDate(planStartDate, scheduledDays, referenceDate) {
+  if (!scheduledDays?.length) return null;
+  const ref = new Date(referenceDate || new Date()); ref.setHours(0,0,0,0);
+  ref.setDate(ref.getDate() - 1);
+  const start = new Date(planStartDate); start.setHours(0,0,0,0);
+  while (ref >= start) {
+    if (scheduledDays.includes(ref.getDay())) return ref.toISOString().slice(0,10);
+    ref.setDate(ref.getDate() - 1);
+  }
+  return null;
+}
+
+export function getNextSessionDayName(scheduledDays, language) {
+  if (!scheduledDays?.length) return null;
+  const cur = new Date();
+  cur.setDate(cur.getDate() + 1);
+  for (let i = 0; i < 7; i++) {
+    if (scheduledDays.includes(cur.getDay())) {
+      return language === 'ru' ? DAY_NAMES_RU[cur.getDay()] : DAY_NAMES_EN[cur.getDay()];
+    }
+    cur.setDate(cur.getDate() + 1);
+  }
+  return null;
+}
+
+export function getWeekCalendar(planStartDate, scheduledDays) {
+  const todayStr = new Date().toISOString().slice(0,10);
+  const monday = new Date();
+  const dow = monday.getDay() || 7;
+  monday.setDate(monday.getDate() - dow + 1);
+  monday.setHours(0,0,0,0);
+  return Array.from({ length: 7 }, (_, i) => {
+    const d = new Date(monday);
+    d.setDate(d.getDate() + i);
+    const dateStr = d.toISOString().slice(0,10);
+    const sessionNum = scheduledDays?.length
+      ? getSessionNumForDate(dateStr, planStartDate, scheduledDays)
+      : null;
+    return {
+      date: dateStr,
+      weekday: d.getDay(),
+      sessionNum,
+      isToday: dateStr === todayStr,
+      isSessionDay: scheduledDays?.length ? scheduledDays.includes(d.getDay()) : true,
+      isFuture: dateStr > todayStr,
+    };
+  });
+}

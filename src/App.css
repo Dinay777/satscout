@@ -4381,6 +4381,71 @@ button {
 
 .dash-rebuild-btn:hover { color: var(--gray-600); }
 
+/* ── Rest Day ───────────────────────────────────────────── */
+.dash-rest-day {
+  background: var(--gray-50);
+  border: 1.5px dashed var(--gray-200);
+  border-radius: 16px;
+  padding: 28px 24px;
+  text-align: center;
+}
+
+.dash-rest-day__icon {
+  font-size: 2rem;
+  margin-bottom: 8px;
+}
+
+.dash-rest-day__text {
+  font-size: 1rem;
+  color: var(--gray-600);
+  font-weight: 500;
+  margin-bottom: 20px;
+}
+
+.dash-rest-day__optional {
+  text-align: left;
+  background: white;
+  border-radius: 12px;
+  padding: 16px;
+  border: 1px solid var(--gray-200);
+}
+
+.dash-rest-day__opt-label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--gray-400);
+  margin-bottom: 8px;
+}
+
+.dash-rest-day__opt-task {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.dash-rest-day__opt-title {
+  font-weight: 600;
+  color: var(--gray-800);
+  font-size: 0.95rem;
+}
+
+.dash-rest-day__opt-meta {
+  font-size: 0.8rem;
+  color: var(--gray-400);
+}
+
+.week-day--rest {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.week-day--rest:hover {
+  background: transparent;
+  border-color: var(--gray-200);
+}
+
 /* Confetti */
 .confetti-wrap {
   position: fixed;

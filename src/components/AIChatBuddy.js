@@ -59,6 +59,7 @@ function AIChatBuddy({ language, user, profile, onProfileUpdate, setCurrentPage 
   const [savingPlan, setSavingPlan] = useState(false);
   const latestProfileRef = useRef(profile);
   const planTasksRef = useRef(null);
+  const scheduledDaysRef = useRef(null);
 
   const messagesContainerRef = useRef(null);
 
@@ -69,7 +70,7 @@ function AIChatBuddy({ language, user, profile, onProfileUpdate, setCurrentPage 
   const savePlanToDashboard = useCallback(async () => {
     setSavingPlan(true);
     try {
-      await generateAndSavePlan(latestProfileRef.current, user.id, planTasksRef.current);
+      await generateAndSavePlan(latestProfileRef.current, user.id, planTasksRef.current, scheduledDaysRef.current);
       if (onProfileUpdate) {
         const today = new Date().toISOString().slice(0, 10);
         onProfileUpdate({ ...latestProfileRef.current, plan_created: true, plan_start_date: today });
@@ -190,9 +191,10 @@ function AIChatBuddy({ language, user, profile, onProfileUpdate, setCurrentPage 
               try {
                 const planUpdate = JSON.parse(planMatch[1].trim());
                 if (planUpdate.plan_created) setPlanJustCreated(true);
-                const { plan_tasks, ...profileUpdate } = planUpdate;
+                const { plan_tasks, scheduled_days, sessions_per_week, ...profileUpdate } = planUpdate;
                 console.log('[Plan] plan_tasks parsed on client:', plan_tasks?.length ?? 'NONE');
                 if (plan_tasks?.length) planTasksRef.current = plan_tasks;
+                if (scheduled_days?.length) scheduledDaysRef.current = scheduled_days;
                 if (user && onProfileUpdate) {
                   supabase.from('profiles').update(profileUpdate).eq('user_id', user.id)
                     .select().single()

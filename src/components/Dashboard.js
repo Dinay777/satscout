@@ -6,6 +6,13 @@ import {
   getCurrentScoreNum,
   getGreeting,
   getWeekNumber,
+  getTodaySessionNumber,
+  getLastSessionDate,
+  getPrevSessionDate,
+  getNextSessionDayName,
+  getWeekCalendar,
+  DAY_SHORT_EN,
+  DAY_SHORT_RU,
 } from '../lib/studyPlan';
 
 const TYPE_META = {
@@ -13,6 +20,22 @@ const TYPE_META = {
   read:     { icon: '📖', label: 'Read',     color: 'orange' },
   practice: { icon: '✏️', label: 'Practice', color: 'green'  },
 };
+
+const OPTIONAL_TASKS = [
+  { title: 'Review 5 vocabulary words', resource: 'Quizlet', url: 'https://quizlet.com/subject/sat-vocabulary/', duration: 3 },
+  { title: 'Revisit 1 mistake from your last session', resource: 'Your notes', url: null, duration: 5 },
+  { title: 'Watch one short SAT tip video', resource: 'SupertutorTV', url: 'https://www.youtube.com/@SupertutorTV', duration: 4 },
+  { title: 'Read 1 paragraph from a classic novel', resource: 'Project Gutenberg', url: 'https://www.gutenberg.org', duration: 5 },
+  { title: 'Skim your study plan summary', resource: 'SATScout', url: null, duration: 2 },
+];
+
+const OPTIONAL_TASKS_RU = [
+  { title: 'Повтори 5 слов по вокабуляру', resource: 'Quizlet', url: 'https://quizlet.com/subject/sat-vocabulary/', duration: 3 },
+  { title: 'Разбери 1 ошибку из прошлой сессии', resource: 'Твои заметки', url: null, duration: 5 },
+  { title: 'Посмотри короткое SAT-видео (до 5 мин)', resource: 'SupertutorTV', url: 'https://www.youtube.com/@SupertutorTV', duration: 4 },
+  { title: 'Прочитай абзац классической книги', resource: 'Project Gutenberg', url: 'https://www.gutenberg.org', duration: 5 },
+  { title: 'Просмотри summary своего плана', resource: 'SATScout', url: null, duration: 2 },
+];
 
 const MATH_TOPICS = {
   foundation: ['Linear Equations', 'Ratios & Proportions', 'Percentages & Word Problems', 'Basic Algebra'],
@@ -44,22 +67,34 @@ function Dashboard({ user, profile, language, setCurrentPage, onProfileUpdate })
 
   const greeting  = getGreeting(language);
   const emailName = user?.email?.split('@')[0] ?? '';
-  const dayNum    = getDayNumber(profile.plan_start_date);
   const totalDays = getDaysUntilTest(profile.exam_timeframe, profile.created_at);
   const startScore  = profile.current_score_actual ?? getCurrentScoreNum(profile.current_score) ?? 800;
   const targetScore = profile.target_score ?? 1400;
   const week       = getWeekNumber(profile.created_at);
   const streak     = profile.current_streak ?? 0;
+  const ru = language === 'ru';
 
-  const activeDay = selectedDay ?? dayNum;
+  const scheduledDays = profile.scheduled_days; // e.g. [1,3,5] or null
+  const hasSchedule = scheduledDays?.length > 0;
 
   const today = new Date().toISOString().slice(0, 10);
+  const sessionNum = getTodaySessionNumber(profile.plan_start_date, scheduledDays);
+  const todayIsSession = hasSchedule ? sessionNum !== null : true;
+  const dayNum = sessionNum ?? getDayNumber(profile.plan_start_date); // fallback for score bar
+
+  const lastSessionDate = hasSchedule
+    ? getLastSessionDate(profile.plan_start_date, scheduledDays)
+    : today;
+  const activeSession = profile.last_completed_session_date
+    ? profile.last_completed_session_date === lastSessionDate
+    : profile.last_active_date === today;
+
   const isDay1 = profile.plan_start_date === today;
-  const activeToday = profile.last_active_date === today;
-  // Show 1 on the very first day as encouragement (plan just created, nothing marked yet)
-  const displayStreak = (streak === 0 && isDay1 && !activeToday) ? 1 : streak;
-  // Gray if not active today, unless it's literally day 1 with no prior activity
-  const streakLost = !activeToday && profile.plan_created && !isDay1;
+  const displayStreak = (streak === 0 && isDay1) ? 1 : streak;
+  const streakLost = !activeSession && profile.plan_created && !isDay1;
+
+  const nextSessionName = getNextSessionDayName(scheduledDays, language);
+  const optionalTask = (ru ? OPTIONAL_TASKS_RU : OPTIONAL_TASKS)[new Date().getDay() % OPTIONAL_TASKS.length];
 
   const completionRate = allTasksStats.total > 0 ? allTasksStats.completed / allTasksStats.total : 0;
   const estimatedScore = Math.round(startScore + (targetScore - startScore) * completionRate);
@@ -68,16 +103,30 @@ function Dashboard({ user, profile, language, setCurrentPage, onProfileUpdate })
     : 0;
   const scorePct = profile.plan_created ? Math.max(2.5, rawScorePct) : 0;
 
-  const ru = language === 'ru';
+  // Week calendar (Mon-Sun with session info)
+  const weekCal = hasSchedule && profile.plan_start_date
+    ? getWeekCalendar(profile.plan_start_date, scheduledDays)
+    : null;
 
   // ── Fetch today's tasks ───────────────────────────────────────────────────
   useEffect(() => {
     if (!profile.plan_created) { setTasksLoading(false); return; }
 
+    const fetchNum = hasSchedule ? sessionNum : dayNum;
+
     Promise.all([
-      supabase.from('user_tasks').select('*').eq('user_id', user.id).eq('day_number', dayNum),
-      supabase.from('user_tasks').select('*').eq('user_id', user.id)
-        .gte('day_number', dayNum).lte('day_number', dayNum + 6),
+      fetchNum
+        ? supabase.from('user_tasks').select('*').eq('user_id', user.id).eq('day_number', fetchNum)
+        : Promise.resolve({ data: [] }),
+      hasSchedule && weekCal
+        ? (() => {
+            const sessionNums = weekCal.filter(d => d.sessionNum).map(d => d.sessionNum);
+            return sessionNums.length
+              ? supabase.from('user_tasks').select('*').eq('user_id', user.id).in('day_number', sessionNums)
+              : Promise.resolve({ data: [] });
+          })()
+        : supabase.from('user_tasks').select('*').eq('user_id', user.id)
+            .gte('day_number', dayNum).lte('day_number', dayNum + 6),
       supabase.from('user_tasks').select('completed').eq('user_id', user.id),
     ]).then(([todayRes, weekRes, allRes]) => {
       setTasks(todayRes.data ?? []);
@@ -86,7 +135,7 @@ function Dashboard({ user, profile, language, setCurrentPage, onProfileUpdate })
       setAllTasksStats({ total: all.length, completed: all.filter(t => t.completed).length });
       setTasksLoading(false);
     });
-  }, [user.id, profile.plan_created, dayNum]);
+  }, [user.id, profile.plan_created, dayNum, sessionNum, hasSchedule]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Mark task complete ────────────────────────────────────────────────────
   const markComplete = useCallback(async (taskId) => {
@@ -95,24 +144,51 @@ function Dashboard({ user, profile, language, setCurrentPage, onProfileUpdate })
       .update({ completed: true, completed_at: now })
       .eq('id', taskId);
 
-    setTasks(prev => prev.map(t => t.id === taskId ? { ...t, completed: true } : t));
+    const updatedTasks = tasks.map(t => t.id === taskId ? { ...t, completed: true } : t);
+    setTasks(updatedTasks);
     setConfetti(true);
     setTimeout(() => setConfetti(false), 1800);
 
-    // Update streak
-    const today = new Date().toISOString().slice(0, 10);
-    if (profile.last_active_date !== today) {
-      const yesterday = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
-      const newStreak = profile.last_active_date === yesterday ? streak + 1 : 1;
-      const longest = Math.max(newStreak, profile.longest_streak ?? 0);
-      await supabase.from('profiles').update({
-        current_streak: newStreak,
-        longest_streak: longest,
-        last_active_date: today,
-      }).eq('user_id', user.id);
-      if (onProfileUpdate) onProfileUpdate({ ...profile, current_streak: newStreak, last_active_date: today });
+    const todayStr = new Date().toISOString().slice(0, 10);
+    const allDoneNow = updatedTasks.every(t => t.completed);
+
+    if (hasSchedule) {
+      // Session mode: increment streak only when all tasks for today's session are done
+      if (allDoneNow && profile.last_completed_session_date !== todayStr) {
+        const prevSess = getPrevSessionDate(profile.plan_start_date, scheduledDays, todayStr);
+        const newStreak = profile.last_completed_session_date === prevSess
+          ? streak + 1
+          : 1;
+        const longest = Math.max(newStreak, profile.longest_streak ?? 0);
+        await supabase.from('profiles').update({
+          current_streak: newStreak,
+          longest_streak: longest,
+          last_completed_session_date: todayStr,
+          last_active_date: todayStr,
+        }).eq('user_id', user.id);
+        if (onProfileUpdate) onProfileUpdate({
+          ...profile,
+          current_streak: newStreak,
+          longest_streak: longest,
+          last_completed_session_date: todayStr,
+          last_active_date: todayStr,
+        });
+      }
+    } else {
+      // Legacy day mode
+      if (profile.last_active_date !== todayStr) {
+        const yesterday = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
+        const newStreak = profile.last_active_date === yesterday ? streak + 1 : 1;
+        const longest = Math.max(newStreak, profile.longest_streak ?? 0);
+        await supabase.from('profiles').update({
+          current_streak: newStreak,
+          longest_streak: longest,
+          last_active_date: todayStr,
+        }).eq('user_id', user.id);
+        if (onProfileUpdate) onProfileUpdate({ ...profile, current_streak: newStreak, last_active_date: todayStr });
+      }
     }
-  }, [profile, streak, user.id, onProfileUpdate]);
+  }, [profile, streak, user.id, onProfileUpdate, tasks, hasSchedule, scheduledDays]);
 
   // ── Unmark task ───────────────────────────────────────────────────────────
   const unmarkComplete = useCallback(async (taskId) => {
@@ -172,11 +248,10 @@ function Dashboard({ user, profile, language, setCurrentPage, onProfileUpdate })
   const statusText = allDone
     ? (ru ? '🎉 На сегодня всё выполнено!' : "🎉 All done for today!")
     : displayStreak > 2
-      ? (ru ? `🔥 ${displayStreak} дней подряд — продолжай!` : `🔥 ${displayStreak} day streak — keep it up!`)
+      ? (ru ? `🔥 ${displayStreak} ${hasSchedule ? 'сессий' : 'дней'} подряд — продолжай!` : `🔥 ${displayStreak} ${hasSchedule ? 'session' : 'day'} streak — keep it up!`)
       : (ru ? 'Ты в пути 💪' : "You're on track 💪");
 
-  // Week strip: today + next 6 days
-  const weekDays = Array.from({ length: 7 }, (_, i) => dayNum + i);
+  // Week strip data
   const weekMap = {};
   weekFullData.forEach(t => {
     if (!weekMap[t.day_number]) weekMap[t.day_number] = { total: 0, done: 0, tasks: [] };
@@ -185,8 +260,10 @@ function Dashboard({ user, profile, language, setCurrentPage, onProfileUpdate })
     weekMap[t.day_number].tasks.push(t);
   });
 
+  const activeDay = selectedDay ?? (hasSchedule ? sessionNum : dayNum) ?? dayNum;
+
   // Tasks shown in the main section (today = interactive, future = read-only)
-  const isViewingToday = activeDay === dayNum;
+  const isViewingToday = hasSchedule ? (activeDay === sessionNum) : (activeDay === dayNum);
   const shownTasks = isViewingToday ? tasks : (weekMap[activeDay]?.tasks ?? []);
 
   const scoreLevel = startScore < 1000 ? 'foundation' : startScore < 1200 ? 'intermediate' : 'advanced';
@@ -219,7 +296,7 @@ function Dashboard({ user, profile, language, setCurrentPage, onProfileUpdate })
           <div className={`dash-streak-badge ${streakLost ? 'dash-streak-badge--lost' : ''}`}>
             <span className="dash-streak-badge__fire">{streakLost ? '🩶' : '🔥'}</span>
             <span className="dash-streak-badge__num">{displayStreak}</span>
-            <span className="dash-streak-badge__label">{ru ? 'дней' : 'days'}</span>
+            <span className="dash-streak-badge__label">{hasSchedule ? (ru ? 'сессий' : 'sessions') : (ru ? 'дней' : 'days')}</span>
           </div>
         </div>
 
@@ -252,94 +329,115 @@ function Dashboard({ user, profile, language, setCurrentPage, onProfileUpdate })
         <section className="dash-section">
           <div className="dash-section__header">
             <h2 className="dash-section__title">
-              {isViewingToday
-                ? (ru ? 'Задачи на сегодня' : "Today's Tasks")
-                : (ru ? `День ${activeDay}` : `Day ${activeDay}`)}
+              {!hasSchedule || todayIsSession
+                ? (isViewingToday
+                    ? (ru ? 'Задачи на сегодня' : "Today's Tasks")
+                    : (ru ? `Сессия ${activeDay}` : `Session ${activeDay}`))
+                : (ru ? 'День отдыха' : 'Rest Day')}
             </h2>
-            {isViewingToday && allDone && <span className="dash-section__badge">{ru ? 'Выполнено ✓' : 'Complete ✓'}</span>}
-            {!isViewingToday && <span className="dash-section__badge dash-section__badge--future">{ru ? 'Впереди' : 'Upcoming'}</span>}
+            {isViewingToday && allDone && todayIsSession && (
+              <span className="dash-section__badge">{ru ? 'Выполнено ✓' : 'Complete ✓'}</span>
+            )}
           </div>
 
-          {tasksLoading ? (
-            <div className="dash-tasks-loading">
-              <div className="chat-typing"><span/><span/><span/></div>
-            </div>
-          ) : shownTasks.length === 0 && isViewingToday && allTasksStats.total === 0 ? (
-            <div className="dash-no-tasks">
-              <p>{ru ? 'Задачи не найдены — нужно сгенерировать план.' : 'Tasks not found — need to generate your plan.'}</p>
-              <button
-                className="dashboard-empty__btn"
-                style={{ marginTop: 12 }}
-                disabled={generatingTasks}
-                onClick={async () => {
-                  setGeneratingTasks(true);
-                  try {
-                    await generateAndSavePlan(profile, user.id);
-                    const today = new Date().toISOString().slice(0, 10);
-                    if (onProfileUpdate) onProfileUpdate({ ...profile, plan_created: true, plan_start_date: today });
-                    window.location.reload();
-                  } catch (e) {
-                    alert('Error: ' + e.message);
-                    setGeneratingTasks(false);
-                  }
-                }}
-              >
-                {generatingTasks
-                  ? (ru ? 'Генерирую...' : 'Generating...')
-                  : (ru ? '⚡ Сгенерировать задачи' : '⚡ Generate Tasks')}
-              </button>
-            </div>
-          ) : shownTasks.length === 0 ? (
-            <div className="dash-no-tasks">
-              {isViewingToday
-                ? (ru ? 'Нет задач на сегодня — отдохни! 🎉' : 'No tasks for today — take a rest! 🎉')
-                : (ru ? 'Нет задач на этот день' : 'No tasks for this day')}
-            </div>
-          ) : (
-            <div className="task-cards">
-              {shownTasks.map(task => {
-                const meta = TYPE_META[task.task_type] || TYPE_META.practice;
-                return (
-                  <div
-                    key={task.id}
-                    className={`task-card task-card--${meta.color} ${task.completed ? 'task-card--done' : ''}`}
-                  >
-                    <div className="task-card__top">
-                      <span className="task-card__type-badge">
-                        {meta.icon} {meta.label}
-                      </span>
-                      <span className="task-card__duration">{task.duration_minutes} min</span>
-                    </div>
-                    <p className="task-card__title">{task.task_title}</p>
-                    <p className="task-card__resource">{task.resource_name}</p>
-                    <div className="task-card__actions">
-                      {task.resource_url && (
-                        <a
-                          href={task.resource_url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="task-card__link"
-                        >
-                          {ru ? 'Открыть →' : 'Open →'}
-                        </a>
-                      )}
-                      {isViewingToday && (
-                        <button
-                          className={`task-card__check ${task.completed ? 'task-card__check--done' : ''}`}
-                          onClick={() => task.completed ? unmarkComplete(task.id) : markComplete(task.id)}
-                        >
-                          {task.completed ? (ru ? '✓ Готово' : '✓ Done') : (ru ? 'Отметить' : 'Mark done')}
-                        </button>
-                      )}
-                    </div>
+          {/* REST DAY BLOCK */}
+          {hasSchedule && !todayIsSession && (
+            <div className="dash-rest-day">
+              <div className="dash-rest-day__icon">💤</div>
+              <p className="dash-rest-day__text">
+                {ru
+                  ? `День отдыха. Следующая сессия: ${nextSessionName ?? '—'}.`
+                  : `Rest day. Next session: ${nextSessionName ?? '—'}.`}
+              </p>
+              {optionalTask && (
+                <div className="dash-rest-day__optional">
+                  <p className="dash-rest-day__opt-label">
+                    {ru ? 'Опционально (не влияет на стрик):' : "Optional (doesn't affect streak):"}
+                  </p>
+                  <div className="dash-rest-day__opt-task">
+                    <span className="dash-rest-day__opt-title">{optionalTask.title}</span>
+                    <span className="dash-rest-day__opt-meta">{optionalTask.duration} min · {optionalTask.resource}</span>
+                    {optionalTask.url && (
+                      <a href={optionalTask.url} target="_blank" rel="noopener noreferrer" className="task-card__link">
+                        {ru ? 'Открыть →' : 'Open →'}
+                      </a>
+                    )}
                   </div>
-                );
-              })}
+                </div>
+              )}
             </div>
           )}
 
-          {/* Today's progress bar */}
-          {isViewingToday && tasks.length > 0 && (
+          {/* TASK CARDS (only on session days or non-scheduled mode) */}
+          {(!hasSchedule || todayIsSession) && (
+            tasksLoading ? (
+              <div className="dash-tasks-loading">
+                <div className="chat-typing"><span/><span/><span/></div>
+              </div>
+            ) : shownTasks.length === 0 && isViewingToday && allTasksStats.total === 0 ? (
+              <div className="dash-no-tasks">
+                <p>{ru ? 'Задачи не найдены — нужно сгенерировать план.' : 'Tasks not found — need to generate your plan.'}</p>
+                <button
+                  className="dashboard-empty__btn"
+                  style={{ marginTop: 12 }}
+                  disabled={generatingTasks}
+                  onClick={async () => {
+                    setGeneratingTasks(true);
+                    try {
+                      await generateAndSavePlan(profile, user.id, null, profile.scheduled_days);
+                      const todayDate = new Date().toISOString().slice(0, 10);
+                      if (onProfileUpdate) onProfileUpdate({ ...profile, plan_created: true, plan_start_date: todayDate });
+                      window.location.reload();
+                    } catch (e) {
+                      alert('Error: ' + e.message);
+                      setGeneratingTasks(false);
+                    }
+                  }}
+                >
+                  {generatingTasks ? (ru ? 'Генерирую...' : 'Generating...') : (ru ? '⚡ Сгенерировать задачи' : '⚡ Generate Tasks')}
+                </button>
+              </div>
+            ) : shownTasks.length === 0 ? (
+              <div className="dash-no-tasks">
+                {isViewingToday
+                  ? (ru ? 'Нет задач на сегодня — отдохни! 🎉' : 'No tasks for today — take a rest! 🎉')
+                  : (ru ? 'Нет задач на эту сессию' : 'No tasks for this session')}
+              </div>
+            ) : (
+              <div className="task-cards">
+                {shownTasks.map(task => {
+                  const meta = TYPE_META[task.task_type] || TYPE_META.practice;
+                  return (
+                    <div key={task.id} className={`task-card task-card--${meta.color} ${task.completed ? 'task-card--done' : ''}`}>
+                      <div className="task-card__top">
+                        <span className="task-card__type-badge">{meta.icon} {meta.label}</span>
+                        <span className="task-card__duration">{task.duration_minutes} min</span>
+                      </div>
+                      <p className="task-card__title">{task.task_title}</p>
+                      <p className="task-card__resource">{task.resource_name}</p>
+                      <div className="task-card__actions">
+                        {task.resource_url && (
+                          <a href={task.resource_url} target="_blank" rel="noopener noreferrer" className="task-card__link">
+                            {ru ? 'Открыть →' : 'Open →'}
+                          </a>
+                        )}
+                        {isViewingToday && (
+                          <button
+                            className={`task-card__check ${task.completed ? 'task-card__check--done' : ''}`}
+                            onClick={() => task.completed ? unmarkComplete(task.id) : markComplete(task.id)}
+                          >
+                            {task.completed ? (ru ? '✓ Готово' : '✓ Done') : (ru ? 'Отметить' : 'Mark done')}
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )
+          )}
+
+          {isViewingToday && todayIsSession && tasks.length > 0 && (
             <div className="dash-today-progress">
               <div className="dash-today-progress__track">
                 <div className="dash-today-progress__fill" style={{ width: `${todayPct}%` }} />
@@ -355,26 +453,48 @@ function Dashboard({ user, profile, language, setCurrentPage, onProfileUpdate })
         <section className="dash-section">
           <h2 className="dash-section__title">{ru ? 'Эта неделя' : 'This Week'}</h2>
           <div className="week-strip">
-            {weekDays.map(d => {
-              const isToday    = d === dayNum;
-              const isSelected = d === activeDay;
-              const info       = weekMap[d];
-              const isDone     = info && info.done === info.total && info.total > 0;
-              const isPartial  = info && info.done > 0 && info.done < info.total;
-
-              return (
-                <button
-                  key={d}
-                  className={`week-day ${isToday ? 'week-day--today' : ''} ${isDone ? 'week-day--done' : ''} ${isSelected ? 'week-day--selected' : ''}`}
-                  onClick={() => setSelectedDay(d === activeDay && !isToday ? null : d)}
-                >
-                  <span className="week-day__num">{ru ? `Д${d}` : `D${d}`}</span>
-                  <span className="week-day__status">
-                    {isDone ? '✓' : isPartial ? '◑' : isToday ? '●' : '·'}
-                  </span>
-                </button>
-              );
-            })}
+            {hasSchedule && weekCal ? (
+              weekCal.map(day => {
+                const info = weekMap[day.sessionNum];
+                const isDone = info && info.done === info.total && info.total > 0;
+                const isPartial = info && info.done > 0 && info.done < info.total;
+                const isSelected = day.sessionNum && day.sessionNum === activeDay;
+                return (
+                  <button
+                    key={day.date}
+                    className={`week-day ${day.isToday ? 'week-day--today' : ''} ${!day.isSessionDay ? 'week-day--rest' : ''} ${isDone ? 'week-day--done' : ''} ${isSelected ? 'week-day--selected' : ''}`}
+                    onClick={() => {
+                      if (!day.isSessionDay || !day.sessionNum) return;
+                      setSelectedDay(day.sessionNum === activeDay && !day.isToday ? null : day.sessionNum);
+                    }}
+                  >
+                    <span className="week-day__num">{(ru ? DAY_SHORT_RU : DAY_SHORT_EN)[day.weekday]}</span>
+                    <span className="week-day__status">
+                      {!day.isSessionDay ? '·' : isDone ? '✓' : isPartial ? '◑' : day.isToday ? '●' : day.isFuture ? '·' : '○'}
+                    </span>
+                  </button>
+                );
+              })
+            ) : (
+              // Legacy: show session numbers
+              Array.from({ length: 7 }, (_, i) => dayNum + i).map(d => {
+                const isToday = d === dayNum;
+                const isSelected = d === activeDay;
+                const info = weekMap[d];
+                const isDone = info && info.done === info.total && info.total > 0;
+                const isPartial = info && info.done > 0 && info.done < info.total;
+                return (
+                  <button
+                    key={d}
+                    className={`week-day ${isToday ? 'week-day--today' : ''} ${isDone ? 'week-day--done' : ''} ${isSelected ? 'week-day--selected' : ''}`}
+                    onClick={() => setSelectedDay(d === activeDay && !isToday ? null : d)}
+                  >
+                    <span className="week-day__num">{ru ? `Д${d}` : `D${d}`}</span>
+                    <span className="week-day__status">{isDone ? '✓' : isPartial ? '◑' : isToday ? '●' : '·'}</span>
+                  </button>
+                );
+              })
+            )}
           </div>
         </section>
 
