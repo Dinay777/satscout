@@ -439,10 +439,7 @@ function Dashboard({ user, profile, language, setCurrentPage, onProfileUpdate, o
         {/* ── This Week ── */}
         <section className="dash-section">
           <h2 className="dash-section__title">{ru ? 'Эта неделя' : 'This Week'}</h2>
-          {/* DEBUG — remove after fix */}
-          <pre style={{fontSize:10,background:'#f0f0f0',padding:8,borderRadius:4,marginBottom:8,overflowX:'auto'}}>
-            {JSON.stringify({hasSchedule,sessionNum,selectedDay,activeDay,weekFullData:weekFullData.length,weekMapKeys:Object.keys(weekMap),scheduledDays,weekCalSessions:weekCal?.map(d=>({d:d.date.slice(5),sn:d.sessionNum,isSess:d.isSessionDay}))},null,2)}
-          </pre>
+
           <div className="week-strip">
             {hasSchedule && weekCal ? (
               weekCal.map(day => {
@@ -455,7 +452,6 @@ function Dashboard({ user, profile, language, setCurrentPage, onProfileUpdate, o
                     key={day.date}
                     className={`week-day ${day.isToday ? 'week-day--today' : ''} ${!day.isSessionDay ? 'week-day--rest' : ''} ${isDone ? 'week-day--done' : ''} ${isSelected ? 'week-day--selected' : ''}`}
                     onClick={() => {
-                      console.log('click', day.date, 'isSessionDay:', day.isSessionDay, 'sessionNum:', day.sessionNum, 'activeDay:', activeDay);
                       if (!day.isSessionDay || !day.sessionNum) return;
                       setSelectedDay(day.sessionNum === activeDay && !day.isToday ? null : day.sessionNum);
                     }}
