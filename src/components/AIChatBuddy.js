@@ -226,26 +226,24 @@ function AIChatBuddy({ language, user, profile, onProfileUpdate, setCurrentPage,
                 const planUpdate = JSON.parse(planMatch[1].trim());
                 console.log('[Plan] parsed:', JSON.stringify(planUpdate).slice(0, 400));
                 if (planUpdate.plan_created) setPlanJustCreated(true);
-                const { plan_tasks, sessions_per_week, ...profileUpdate } = planUpdate;
+                const { plan_tasks, sessions_per_week, plan_created, ...profileUpdate } = planUpdate;
                 if (plan_tasks?.length) planTasksRef.current = plan_tasks;
 
                 // Always ensure scheduled_days is set when plan is created
-                if (!profileUpdate.scheduled_days?.length && planUpdate.plan_created) {
+                if (!profileUpdate.scheduled_days?.length && plan_created) {
                   const defaults = { 1:[3], 2:[2,5], 3:[1,3,5], 4:[1,2,4,5], 5:[1,2,3,4,5], 6:[1,2,3,4,5,6], 7:[0,1,2,3,4,5,6] };
                   profileUpdate.scheduled_days = defaults[sessions_per_week] ?? [1,3,5];
-                  console.log('[Plan] fallback scheduled_days:', profileUpdate.scheduled_days);
                 }
 
                 if (profileUpdate.scheduled_days?.length) scheduledDaysRef.current = profileUpdate.scheduled_days;
-                console.log('[Plan] scheduledDaysRef set to:', scheduledDaysRef.current);
 
-                if (user && onProfileUpdate) {
-                  supabase.from('profiles').update(profileUpdate).eq('user_id', user.id)
+                // Save non-plan fields immediately (score, target, etc.) — but NOT plan_created
+                // plan_created is only set when user clicks "Save to Dashboard" and tasks are saved
+                const { scheduled_days: _sd, ...immediateUpdate } = profileUpdate;
+                if (user && Object.keys(immediateUpdate).length > 0) {
+                  supabase.from('profiles').update(immediateUpdate).eq('user_id', user.id)
                     .select().single()
-                    .then(({ data: updated, error }) => {
-                      console.log('[Plan] profile update result:', updated, error);
-                      if (updated) onProfileUpdate(updated);
-                    });
+                    .then(({ data: updated }) => { if (updated) onProfileUpdate(updated); });
                 }
               } catch (e) {
                 console.error('[Plan] parse error:', e.message);
