@@ -327,19 +327,19 @@ function Dashboard({ user, profile, language, setCurrentPage, onProfileUpdate, o
         <section className="dash-section">
           <div className="dash-section__header">
             <h2 className="dash-section__title">
-              {!hasSchedule || todayIsSession
-                ? (isViewingToday
-                    ? (ru ? 'Задачи на сегодня' : "Today's Tasks")
-                    : (ru ? `Сессия ${activeDay}` : `Session ${activeDay}`))
-                : (ru ? 'День отдыха' : 'Rest Day')}
+              {hasSchedule && !todayIsSession && selectedDay === null
+                ? (ru ? 'День отдыха' : 'Rest Day')
+                : isViewingToday
+                  ? (ru ? 'Задачи на сегодня' : "Today's Tasks")
+                  : (ru ? `Сессия ${activeDay}` : `Session ${activeDay}`)}
             </h2>
             {isViewingToday && allDone && todayIsSession && (
               <span className="dash-section__badge">{ru ? 'Выполнено ✓' : 'Complete ✓'}</span>
             )}
           </div>
 
-          {/* REST DAY BLOCK */}
-          {hasSchedule && !todayIsSession && (
+          {/* REST DAY BLOCK — only when no day is selected */}
+          {hasSchedule && !todayIsSession && selectedDay === null && (
             <div className="dash-rest-day">
               <div className="dash-rest-day__icon">💤</div>
               <p className="dash-rest-day__text">
@@ -366,8 +366,8 @@ function Dashboard({ user, profile, language, setCurrentPage, onProfileUpdate, o
             </div>
           )}
 
-          {/* TASK CARDS (only on session days or non-scheduled mode) */}
-          {(!hasSchedule || todayIsSession) && (
+          {/* TASK CARDS */}
+          {(!hasSchedule || todayIsSession || selectedDay !== null) && (
             tasksLoading ? (
               <div className="dash-tasks-loading">
                 <div className="chat-typing"><span/><span/><span/></div>
