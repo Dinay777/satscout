@@ -258,10 +258,11 @@ function Dashboard({ user, profile, language, setCurrentPage, onProfileUpdate, o
     weekMap[t.day_number].tasks.push(t);
   });
 
-  const activeDay = selectedDay ?? (hasSchedule ? sessionNum : dayNum) ?? dayNum;
+  // In session mode, don't fall back to dayNum — keeps rest-day clicks from colliding with session numbers
+  const activeDay = selectedDay ?? (hasSchedule ? sessionNum : dayNum);
 
   // Tasks shown in the main section (today = interactive, future = read-only)
-  const isViewingToday = hasSchedule ? (activeDay === sessionNum) : (activeDay === dayNum);
+  const isViewingToday = activeDay !== null && (hasSchedule ? activeDay === sessionNum : activeDay === dayNum);
   const shownTasks = isViewingToday ? tasks : (weekMap[activeDay]?.tasks ?? []);
 
   const scoreLevel = startScore < 1000 ? 'foundation' : startScore < 1200 ? 'intermediate' : 'advanced';
