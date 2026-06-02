@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
-import { generateAndSavePlan } from '../lib/planGenerator';
 import {
   getDaysUntilTest,
   getCurrentScoreNum,
@@ -63,7 +62,6 @@ function Dashboard({ user, profile, language, setCurrentPage, onProfileUpdate })
   const [confetti, setConfetti]     = useState(false);
   const [rebuilding, setRebuilding] = useState(false);
   const [selectedDay, setSelectedDay] = useState(null);
-  const [generatingTasks, setGeneratingTasks] = useState(false);
 
   const greeting  = getGreeting(language);
   const emailName = user?.email?.split('@')[0] ?? '';
@@ -376,25 +374,13 @@ function Dashboard({ user, profile, language, setCurrentPage, onProfileUpdate })
               </div>
             ) : shownTasks.length === 0 && isViewingToday && allTasksStats.total === 0 ? (
               <div className="dash-no-tasks">
-                <p>{ru ? 'Задачи не найдены — нужно сгенерировать план.' : 'Tasks not found — need to generate your plan.'}</p>
+                <p>{ru ? 'Задачи не найдены. Создай план в AI чате.' : 'No tasks found. Build your plan in the AI chat.'}</p>
                 <button
                   className="dashboard-empty__btn"
                   style={{ marginTop: 12 }}
-                  disabled={generatingTasks}
-                  onClick={async () => {
-                    setGeneratingTasks(true);
-                    try {
-                      await generateAndSavePlan(profile, user.id, null, profile.scheduled_days);
-                      const todayDate = new Date().toISOString().slice(0, 10);
-                      if (onProfileUpdate) onProfileUpdate({ ...profile, plan_created: true, plan_start_date: todayDate });
-                      window.location.reload();
-                    } catch (e) {
-                      alert('Error: ' + e.message);
-                      setGeneratingTasks(false);
-                    }
-                  }}
+                  onClick={() => setCurrentPage('ai-buddy')}
                 >
-                  {generatingTasks ? (ru ? 'Генерирую...' : 'Generating...') : (ru ? '⚡ Сгенерировать задачи' : '⚡ Generate Tasks')}
+                  {ru ? 'Создать план →' : 'Create Plan →'}
                 </button>
               </div>
             ) : shownTasks.length === 0 ? (
