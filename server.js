@@ -130,7 +130,7 @@ PAID:
 Формат блока (студент его не увидит):
 
 [[PLAN_UPDATE]]
-{"target_score": 1400, "weak_sections": ["math"], "exam_timeframe": "2-4-months", "study_hours": "1-2", "plan_created": true, "plan_summary": "90-day plan focused on Math...", "plan_tasks": [{"day":1,"title":"Watch: Heart of Algebra","task_type":"video","resource_name":"Scalar Learning","resource_url":"https://www.youtube.com/@ScalarLearning","duration_minutes":25},{"day":1,"title":"Practice: Linear equations","task_type":"practice","resource_name":"Khan Academy SAT","resource_url":"https://www.khanacademy.org/sat","duration_minutes":30},{"day":2,"title":"Read: Algebra chapter","task_type":"read","resource_name":"College Panda Math","resource_url":"https://thecollegepanda.com/books/","duration_minutes":40}]}
+{"target_score": 1400, "weak_sections": ["math"], "exam_timeframe": "2-4-months", "study_hours": "1-2", "plan_created": true, "sessions_per_week": 3, "scheduled_days": [1,3,5], "plan_summary": "90-day plan focused on Math...", "plan_tasks": [{"day":1,"title":"Watch: Heart of Algebra","task_type":"video","resource_name":"Scalar Learning","resource_url":"https://www.youtube.com/@ScalarLearning","duration_minutes":25},{"day":1,"title":"Practice: Linear equations","task_type":"practice","resource_name":"Khan Academy SAT","resource_url":"https://www.khanacademy.org/sat","duration_minutes":30},{"day":2,"title":"Read: Algebra chapter","task_type":"read","resource_name":"College Panda Math","resource_url":"https://thecollegepanda.com/books/","duration_minutes":40}]}
 [[/PLAN_UPDATE]]
 
 Включай ТОЛЬКО поля которые действительно меняются. Допустимые значения:

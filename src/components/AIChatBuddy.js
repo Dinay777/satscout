@@ -220,11 +220,11 @@ function AIChatBuddy({ language, user, profile, onProfileUpdate, setCurrentPage 
                 const { plan_tasks, sessions_per_week, ...profileUpdate } = planUpdate;
                 if (plan_tasks?.length) planTasksRef.current = plan_tasks;
 
-                // Fallback: if AI omitted scheduled_days but gave sessions_per_week, generate defaults
-                if (!profileUpdate.scheduled_days?.length && sessions_per_week) {
+                // Always ensure scheduled_days is set when plan is created
+                if (!profileUpdate.scheduled_days?.length && planUpdate.plan_created) {
                   const defaults = { 1:[3], 2:[2,5], 3:[1,3,5], 4:[1,2,4,5], 5:[1,2,3,4,5], 6:[1,2,3,4,5,6], 7:[0,1,2,3,4,5,6] };
                   profileUpdate.scheduled_days = defaults[sessions_per_week] ?? [1,3,5];
-                  console.log('[Plan] generated default scheduled_days:', profileUpdate.scheduled_days);
+                  console.log('[Plan] fallback scheduled_days:', profileUpdate.scheduled_days);
                 }
 
                 if (profileUpdate.scheduled_days?.length) scheduledDaysRef.current = profileUpdate.scheduled_days;
