@@ -27,6 +27,7 @@ function App() {
   const [profile, setProfile]         = useState(null);
   const [authLoading, setAuthLoading] = useState(true);
   const [profileLoading, setProfileLoading] = useState(false);
+  const [pendingChatMessage, setPendingChatMessage] = useState(null);
 
   // ── Auth listener ──
   useEffect(() => {
@@ -159,6 +160,8 @@ function App() {
             profile={profile}
             onProfileUpdate={(updated) => setProfile(updated)}
             setCurrentPage={setCurrentPage}
+            pendingMessage={pendingChatMessage}
+            onPendingMessageSent={() => setPendingChatMessage(null)}
           />
         </div>
       )}
@@ -170,6 +173,10 @@ function App() {
           language={language}
           setCurrentPage={setCurrentPage}
           onProfileUpdate={(updated) => setProfile(updated)}
+          onStartPlan={() => {
+            setPendingChatMessage("Let's build my study plan →");
+            setCurrentPage('ai-buddy');
+          }}
         />
       )}
 

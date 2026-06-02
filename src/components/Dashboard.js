@@ -54,7 +54,7 @@ function getDayNumber(planStartDate) {
   return Math.max(1, Math.floor(diff / 86400000) + 1);
 }
 
-function Dashboard({ user, profile, language, setCurrentPage, onProfileUpdate }) {
+function Dashboard({ user, profile, language, setCurrentPage, onProfileUpdate, onStartPlan }) {
   const [tasks, setTasks]           = useState([]);
   const [weekFullData, setWeekFullData] = useState([]);
   const [allTasksStats, setAllTasksStats] = useState({ total: 0, completed: 0 });
@@ -229,7 +229,7 @@ function Dashboard({ user, profile, language, setCurrentPage, onProfileUpdate })
             </p>
             <button
               className="dashboard-empty__btn"
-              onClick={() => setCurrentPage('ai-buddy')}
+              onClick={() => onStartPlan ? onStartPlan() : setCurrentPage('ai-buddy')}
             >
               {ru ? 'Начать планирование →' : 'Start Planning →'}
             </button>

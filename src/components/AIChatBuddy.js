@@ -44,7 +44,7 @@ function formatMessage(text) {
 
 const PLAN_UPDATE_RE = /\[\[PLAN_UPDATE\]\][\s\S]*?\[\[\/PLAN_UPDATE\]\]/g;
 
-function AIChatBuddy({ language, user, profile, onProfileUpdate, setCurrentPage }) {
+function AIChatBuddy({ language, user, profile, onProfileUpdate, setCurrentPage, pendingMessage, onPendingMessageSent }) {
   const t = text.en;
   const noPlan = !profile?.plan_created;
   const welcomeContent = noPlan ? t.welcomePlan : t.welcome;
@@ -135,6 +135,15 @@ function AIChatBuddy({ language, user, profile, onProfileUpdate, setCurrentPage 
       messagesContainerRef.current.scrollTop = messagesContainerRef.current.scrollHeight;
     }
   }, [messages]);
+
+  // ── Auto-send pending message from Dashboard ─────────────────────────────
+  useEffect(() => {
+    if (pendingMessage && !historyLoading && !isLoading) {
+      sendMessage(pendingMessage);
+      if (onPendingMessageSent) onPendingMessageSent();
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pendingMessage, historyLoading]);
 
   // ── Save a message to Supabase ────────────────────────────────────────────
   const saveMessage = useCallback(async (role, content) => {
