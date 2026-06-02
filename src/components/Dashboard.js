@@ -439,6 +439,10 @@ function Dashboard({ user, profile, language, setCurrentPage, onProfileUpdate, o
         {/* ── This Week ── */}
         <section className="dash-section">
           <h2 className="dash-section__title">{ru ? 'Эта неделя' : 'This Week'}</h2>
+          {/* DEBUG — remove after fix */}
+          <pre style={{fontSize:10,background:'#f0f0f0',padding:8,borderRadius:4,marginBottom:8,overflowX:'auto'}}>
+            {JSON.stringify({hasSchedule,sessionNum,selectedDay,activeDay,weekFullData:weekFullData.length,weekMapKeys:Object.keys(weekMap)},null,2)}
+          </pre>
           <div className="week-strip">
             {hasSchedule && weekCal ? (
               weekCal.map(day => {
