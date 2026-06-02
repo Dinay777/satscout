@@ -160,6 +160,23 @@ const DAY_NAMES_RU = ['Воскресенье','Понедельник','Вто�
 export const DAY_SHORT_EN = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
 export const DAY_SHORT_RU = ['Вс','Пн','Вт','Ср','Чт','Пт','Сб'];
 
+// Parse 'YYYY-MM-DD' as LOCAL midnight (not UTC) to avoid timezone day-shift bugs
+function parseLocalDate(str) {
+  const [y, m, d] = str.split('-').map(Number);
+  return new Date(y, m - 1, d);
+}
+
+// Return today's date as 'YYYY-MM-DD' in local time
+function localToday() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+
+// Format a local Date as 'YYYY-MM-DD'
+function toLocalStr(d) {
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+
 function countSessionsUpTo(date, planStartDate, scheduledDays) {
   const target = new Date(date); target.setHours(0,0,0,0);
   const start = new Date(planStartDate); start.setHours(0,0,0,0);
@@ -175,29 +192,30 @@ function countSessionsUpTo(date, planStartDate, scheduledDays) {
 export function getTodaySessionNumber(planStartDate, scheduledDays) {
   if (!planStartDate) return 1;
   if (!scheduledDays?.length) {
-    return Math.max(1, Math.floor((Date.now() - new Date(planStartDate).getTime()) / 86400000) + 1);
+    const start = parseLocalDate(planStartDate);
+    return Math.max(1, Math.floor((Date.now() - start.getTime()) / 86400000) + 1);
   }
   const today = new Date(); today.setHours(0,0,0,0);
   if (!scheduledDays.includes(today.getDay())) return null;
-  return countSessionsUpTo(today, planStartDate, scheduledDays);
+  return countSessionsUpTo(today, parseLocalDate(planStartDate), scheduledDays);
 }
 
 export function getSessionNumForDate(dateStr, planStartDate, scheduledDays) {
   if (!planStartDate || !scheduledDays?.length) return null;
-  const date = new Date(dateStr); date.setHours(0,0,0,0);
-  const start = new Date(planStartDate); start.setHours(0,0,0,0);
+  const date = parseLocalDate(dateStr);
+  const start = parseLocalDate(planStartDate);
   if (date < start) return null;
   if (!scheduledDays.includes(date.getDay())) return null;
-  return countSessionsUpTo(date, planStartDate, scheduledDays);
+  return countSessionsUpTo(date, start, scheduledDays);
 }
 
 export function getLastSessionDate(planStartDate, scheduledDays) {
-  if (!scheduledDays?.length) return new Date().toISOString().slice(0,10);
+  if (!scheduledDays?.length) return localToday();
   const today = new Date(); today.setHours(0,0,0,0);
-  const start = new Date(planStartDate || today); start.setHours(0,0,0,0);
+  const start = planStartDate ? parseLocalDate(planStartDate) : today;
   const cur = new Date(today);
   while (cur >= start) {
-    if (scheduledDays.includes(cur.getDay())) return cur.toISOString().slice(0,10);
+    if (scheduledDays.includes(cur.getDay())) return toLocalStr(cur);
     cur.setDate(cur.getDate() - 1);
   }
   return null;
@@ -205,11 +223,12 @@ export function getLastSessionDate(planStartDate, scheduledDays) {
 
 export function getPrevSessionDate(planStartDate, scheduledDays, referenceDate) {
   if (!scheduledDays?.length) return null;
-  const ref = new Date(referenceDate || new Date()); ref.setHours(0,0,0,0);
+  const ref = referenceDate ? parseLocalDate(referenceDate) : new Date();
+  ref.setHours(0,0,0,0);
   ref.setDate(ref.getDate() - 1);
-  const start = new Date(planStartDate); start.setHours(0,0,0,0);
+  const start = parseLocalDate(planStartDate); start.setHours(0,0,0,0);
   while (ref >= start) {
-    if (scheduledDays.includes(ref.getDay())) return ref.toISOString().slice(0,10);
+    if (scheduledDays.includes(ref.getDay())) return toLocalStr(ref);
     ref.setDate(ref.getDate() - 1);
   }
   return null;
@@ -229,7 +248,7 @@ export function getNextSessionDayName(scheduledDays, language) {
 }
 
 export function getWeekCalendar(planStartDate, scheduledDays) {
-  const todayStr = new Date().toISOString().slice(0,10);
+  const todayStr = localToday();
   const monday = new Date();
   const dow = monday.getDay() || 7;
   monday.setDate(monday.getDate() - dow + 1);
@@ -237,7 +256,7 @@ export function getWeekCalendar(planStartDate, scheduledDays) {
   return Array.from({ length: 7 }, (_, i) => {
     const d = new Date(monday);
     d.setDate(d.getDate() + i);
-    const dateStr = d.toISOString().slice(0,10);
+    const dateStr = toLocalStr(d);
     const sessionNum = scheduledDays?.length
       ? getSessionNumForDate(dateStr, planStartDate, scheduledDays)
       : null;
