@@ -75,7 +75,10 @@ function Dashboard({ user, profile, language, setCurrentPage, onProfileUpdate, o
   const scheduledDays = profile.scheduled_days; // e.g. [1,3,5] or null
   const hasSchedule = scheduledDays?.length > 0;
 
-  const today = new Date().toISOString().slice(0, 10);
+  // Local date string (avoids UTC timezone shift)
+  const todayD = new Date();
+  const today = `${todayD.getFullYear()}-${String(todayD.getMonth()+1).padStart(2,'0')}-${String(todayD.getDate()).padStart(2,'0')}`;
+
   const sessionNum = getTodaySessionNumber(profile.plan_start_date, scheduledDays);
   const todayIsSession = hasSchedule ? sessionNum !== null : true;
   const dayNum = sessionNum ?? getDayNumber(profile.plan_start_date); // fallback for score bar
@@ -258,12 +261,18 @@ function Dashboard({ user, profile, language, setCurrentPage, onProfileUpdate, o
     weekMap[t.day_number].tasks.push(t);
   });
 
-  // In session mode, don't fall back to dayNum — keeps rest-day clicks from colliding with session numbers
-  const activeDay = selectedDay ?? (hasSchedule ? sessionNum : dayNum);
+  // selectedDay is a date string ('2026-06-03') or null (= today)
+  const activeDate = selectedDay ?? today;
+  const activeDayInfo = weekCal?.find(d => d.date === activeDate);
+  const activeDayIsSession = hasSchedule
+    ? (activeDayInfo?.isSessionDay ?? todayIsSession)
+    : true;
+  const activeSessionNum = hasSchedule
+    ? (activeDayInfo?.sessionNum ?? (activeDate === today ? sessionNum : null))
+    : (activeDate === today ? dayNum : null);
 
-  // Tasks shown in the main section (today = interactive, future = read-only)
-  const isViewingToday = activeDay !== null && (hasSchedule ? activeDay === sessionNum : activeDay === dayNum);
-  const shownTasks = isViewingToday ? tasks : (weekMap[activeDay]?.tasks ?? []);
+  const isViewingToday = activeDate === today;
+  const shownTasks = isViewingToday ? tasks : (weekMap[activeSessionNum]?.tasks ?? []);
 
   const scoreLevel = startScore < 1000 ? 'foundation' : startScore < 1200 ? 'intermediate' : 'advanced';
   const weakSpots = [
@@ -328,19 +337,19 @@ function Dashboard({ user, profile, language, setCurrentPage, onProfileUpdate, o
         <section className="dash-section">
           <div className="dash-section__header">
             <h2 className="dash-section__title">
-              {hasSchedule && !todayIsSession && selectedDay === null
+              {hasSchedule && !activeDayIsSession
                 ? (ru ? 'День отдыха' : 'Rest Day')
                 : isViewingToday
                   ? (ru ? 'Задачи на сегодня' : "Today's Tasks")
-                  : (ru ? `Сессия ${activeDay}` : `Session ${activeDay}`)}
+                  : (ru ? `Сессия ${activeSessionNum}` : `Session ${activeSessionNum}`)}
             </h2>
             {isViewingToday && allDone && todayIsSession && (
               <span className="dash-section__badge">{ru ? 'Выполнено ✓' : 'Complete ✓'}</span>
             )}
           </div>
 
-          {/* REST DAY BLOCK — only when no day is selected */}
-          {hasSchedule && !todayIsSession && selectedDay === null && (
+          {/* REST DAY BLOCK */}
+          {hasSchedule && !activeDayIsSession && (
             <div className="dash-rest-day">
               <div className="dash-rest-day__icon">💤</div>
               <p className="dash-rest-day__text">
@@ -368,7 +377,7 @@ function Dashboard({ user, profile, language, setCurrentPage, onProfileUpdate, o
           )}
 
           {/* TASK CARDS */}
-          {(!hasSchedule || todayIsSession || selectedDay !== null) && (
+          {(!hasSchedule || activeDayIsSession) && (
             tasksLoading ? (
               <div className="dash-tasks-loading">
                 <div className="chat-typing"><span/><span/><span/></div>
@@ -446,14 +455,13 @@ function Dashboard({ user, profile, language, setCurrentPage, onProfileUpdate, o
                 const info = weekMap[day.sessionNum];
                 const isDone = info && info.done === info.total && info.total > 0;
                 const isPartial = info && info.done > 0 && info.done < info.total;
-                const isSelected = day.sessionNum && day.sessionNum === activeDay;
+                const isSelected = day.date === activeDate;
                 return (
                   <button
                     key={day.date}
                     className={`week-day ${day.isToday ? 'week-day--today' : ''} ${!day.isSessionDay ? 'week-day--rest' : ''} ${isDone ? 'week-day--done' : ''} ${isSelected ? 'week-day--selected' : ''}`}
                     onClick={() => {
-                      if (!day.isSessionDay || !day.sessionNum) return;
-                      setSelectedDay(day.sessionNum === activeDay && !day.isToday ? null : day.sessionNum);
+                      setSelectedDay(day.date === today ? null : (day.date === selectedDay ? null : day.date));
                     }}
                   >
                     <span className="week-day__num">{(ru ? DAY_SHORT_RU : DAY_SHORT_EN)[day.weekday]}</span>
@@ -467,7 +475,7 @@ function Dashboard({ user, profile, language, setCurrentPage, onProfileUpdate, o
               // Legacy: show session numbers
               Array.from({ length: 7 }, (_, i) => dayNum + i).map(d => {
                 const isToday = d === dayNum;
-                const isSelected = d === activeDay;
+                const isSelected = d === (activeSessionNum ?? dayNum);
                 const info = weekMap[d];
                 const isDone = info && info.done === info.total && info.total > 0;
                 const isPartial = info && info.done > 0 && info.done < info.total;
@@ -475,7 +483,7 @@ function Dashboard({ user, profile, language, setCurrentPage, onProfileUpdate, o
                   <button
                     key={d}
                     className={`week-day ${isToday ? 'week-day--today' : ''} ${isDone ? 'week-day--done' : ''} ${isSelected ? 'week-day--selected' : ''}`}
-                    onClick={() => setSelectedDay(d === activeDay && !isToday ? null : d)}
+                    onClick={() => setSelectedDay(isToday ? null : (d === (activeSessionNum ?? dayNum) ? null : d))}
                   >
                     <span className="week-day__num">{ru ? `Д${d}` : `D${d}`}</span>
                     <span className="week-day__status">{isDone ? '✓' : isPartial ? '◑' : isToday ? '●' : '·'}</span>
