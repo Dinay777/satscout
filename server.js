@@ -330,5 +330,5 @@ const PORT = process.env.PORT || 3001;
 app.listen(PORT, () => {
   console.log(`SATScout backend running on http://localhost:${PORT}`);
   console.log(`Provider: Claude CLI (${process.env.CLAUDE_BINARY || '/opt/homebrew/bin/claude'})`);
-  console.log(`Max concurrent processes: ${process.env.MAX_CONCURRENT || 3}`);
+  console.log(`Max concurrent processes: ${process.env.MAX_CONCURRENT || 5}`);
 });
