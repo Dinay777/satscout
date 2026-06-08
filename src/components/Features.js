@@ -21,13 +21,13 @@ const text = {
         icon: '🗺️',
         title: 'Study Planner',
         description: 'Enter your test date, current score, and goal — get a week-by-week plan with specific resources. Your personal SAT roadmap.',
-        tag: 'Coming Soon'
+        tag: 'New'
       },
       {
         icon: '📊',
         title: 'Progress Dashboard',
         description: 'Track your score growth week by week. See today\'s tasks, your estimated score, and how far you\'ve come — all in one view.',
-        tag: 'Coming Soon'
+        tag: 'New'
       }
     ]
   },
@@ -51,13 +51,13 @@ const text = {
         icon: '🗺️',
         title: 'Планировщик',
         description: 'Введи дату экзамена, текущий и целевой балл — получи план по неделям с конкретными ресурсами.',
-        tag: 'Скоро'
+        tag: 'Новое'
       },
       {
         icon: '📊',
         title: 'Дашборд прогресса',
         description: 'Следи за ростом баллов по неделям. Задачи на сегодня, прогноз результата и пройденный путь — всё в одном месте.',
-        tag: 'Скоро'
+        tag: 'Новое'
       }
     ]
   }
