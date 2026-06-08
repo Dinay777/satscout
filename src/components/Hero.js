@@ -3,8 +3,8 @@ import React from 'react';
 const text = {
   en: {
     badge: 'Free SAT Prep Platform',
-    title1: 'stop planning.',
-    title2: 'start scoring.',
+    title1: 'Less guessing.',
+    title2: 'More scoring.',
     subtitle: 'Curated resources, AI-powered study help, and personalized prep plans — all in one place. Built by a student, for students.',
     cta1: 'Explore Resources',
     cta2: 'Ask AI Buddy',
@@ -33,8 +33,8 @@ const text = {
   },
   ru: {
     badge: 'Бесплатная подготовка к SAT',
-    title1: 'stop planning.',
-    title2: 'start scoring.',
+    title1: 'Less guessing.',
+    title2: 'More scoring.',
     subtitle: 'Проверенные ресурсы, AI-помощник и персональные планы подготовки — всё в одном месте. Создано студентом для студентов.',
     cta1: 'Ресурсы',
     cta2: 'AI Помощник',

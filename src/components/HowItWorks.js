@@ -78,8 +78,8 @@ function HowItWorks({ language }) {
         <div className="how-it-works__right">
           <div className="how-it-works__photo-wrap">
             <img
-              src="https://images.unsplash.com/photo-1503676260728-1c00da094a0b?w=600&h=700&fit=crop&auto=format&q=80"
-              alt="Student studying at a desk"
+              src="/images/sat-book.jpg"
+              alt="The Official SAT Study Guide"
               className="how-it-works__photo"
               loading="lazy"
             />
