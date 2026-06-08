@@ -2,7 +2,7 @@ import React from 'react';
 
 const text = {
   en: {
-    description: 'Free SAT prep platform with curated resources and AI-powered study help. Built by a student, for students.',
+    description: 'Free SAT prep. No upsells, no fluff, no VC funding.',
     resources: 'Resources',
     aiBuddy: 'AI Study Buddy',
     programs: 'Summer Programs',
@@ -11,7 +11,7 @@ const text = {
     madeWith: 'Made with ♥ in Houston, TX'
   },
   ru: {
-    description: 'Бесплатная платформа для подготовки к SAT с проверенными ресурсами и AI-помощником. Создано студентом для студентов.',
+    description: 'Бесплатный SAT-prep. Без рекламы, без надбавок, без инвесторов.',
     resources: 'Ресурсы',
     aiBuddy: 'AI Помощник',
     programs: 'Летние школы',

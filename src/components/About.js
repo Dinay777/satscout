@@ -3,8 +3,8 @@ import React from 'react';
 const text = {
   en: {
     badge: 'Our Story',
-    title: 'Built by a student,',
-    titleAccent: 'for students.',
+    title: "Didn't have a tutor,",
+    titleAccent: 'so I built one.',
     story: "I remember the exact moment I knew SAT prep was broken. I was sitting at my desk, fifteen tabs open, every 'ultimate guide' saying something different. Which books? In what order? How many practice tests? I was losing weeks just figuring out where to start — and the clock was ticking.\n\nSo I built SATScout. Every resource in the library has been tested, not just listed. The AI Buddy is the tutor I wish I'd had: patient, bilingual, no judgment, and available at 2am when you're stuck and panicking.\n\nNo ads. No affiliate links. No upsells. If SATScout helped you, all I ask is that you tell someone who needs it.",
     missionLabel: 'Mission',
     missionTitle: 'Make world-class SAT prep accessible to every student — regardless of location or income.',
@@ -35,8 +35,8 @@ const text = {
   },
   ru: {
     badge: 'Наша история',
-    title: 'Создано студентом',
-    titleAccent: 'для студентов.',
+    title: 'Не было репетитора —',
+    titleAccent: 'пришлось создать.',
     story: 'Я точно помню тот момент, когда поняла, что подготовка к SAT — это хаос. Сидела за столом, пятнадцать вкладок открыто, и каждый «лучший гайд» говорил что-то своё. Какие книги? В каком порядке? Сколько практических тестов? Я теряла недели, просто пытаясь понять с чего начать — а время шло.\n\nПоэтому я создала SATScout. Каждый ресурс в библиотеке проверен лично — не просто добавлен. AI помощник — это репетитор, которого я хотела: терпеливый, двуязычный, без осуждения и доступный в 2 ночи, когда застряла и паникуешь.\n\nНикакой рекламы. Никаких реферальных ссылок. Никаких платных функций. Если SATScout тебе помог — расскажи тому, кому это нужно.',
     missionLabel: 'Миссия',
     missionTitle: 'Сделать качественную подготовку к SAT доступной для каждого студента — вне зависимости от места и дохода.',
