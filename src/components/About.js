@@ -31,7 +31,7 @@ const text = {
     contactSubtitle: 'Reach out directly — I read every message.',
     contactEmail: 'Email us',
     contactEmailAddr: 'dinaytaalaibekova@gmail.com',
-    builtWith: 'Built with React. Made with ♥ in Houston, TX.',
+    builtWith: 'Built with ♥ by Dinay.',
   },
   ru: {
     badge: 'Наша история',
@@ -63,7 +63,7 @@ const text = {
     contactSubtitle: 'Напиши напрямую — я читаю каждое сообщение.',
     contactEmail: 'Написать нам',
     contactEmailAddr: 'dinaytaalaibekova@gmail.com',
-    builtWith: 'Сделано на React. Создано с ♥ в Хьюстоне, TX.',
+    builtWith: 'Built with ♥ by Dinay.',
   },
 };
 
