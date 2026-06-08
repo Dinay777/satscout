@@ -4,16 +4,21 @@ const express = require('express');
 const cors = require('cors');
 
 const ClaudeCLIProvider = require('./providers/claude-cli');
-// Future swap: const GeminiProvider = require('./providers/gemini');
+const GeminiProvider = require('./providers/gemini');
+const OpenRouterProvider = require('./providers/openrouter');
 const RequestQueue = require('./queue');
 const rateLimiter = require('./middleware/rateLimiter');
 const concurrencyGuard = require('./middleware/concurrency');
 
 const app = express();
 
+const ALLOWED_ORIGINS = process.env.ALLOWED_ORIGINS
+  ? process.env.ALLOWED_ORIGINS.split(',').map(o => o.trim())
+  : ['http://localhost:3000'];
+
 app.use(cors({
   origin: (origin, callback) => {
-    if (!origin || origin === 'http://localhost:3000' || origin.includes('vercel.app')) {
+    if (!origin || ALLOWED_ORIGINS.some(o => origin === o || (o.includes('*') && origin.includes(o.replace('*', ''))))) {
       callback(null, true);
     } else {
       callback(new Error('Not allowed by CORS'));
@@ -24,10 +29,18 @@ app.use(cors({
 app.use(express.json({ limit: '20kb' }));
 
 // ── Provider & Queue ─────────────────────────────────────────────────────────
-const provider = new ClaudeCLIProvider();
-// Future swap: const provider = new GeminiProvider(process.env.GEMINI_API_KEY);
+// Switch providers via PROVIDER env var: claude-cli | gemini | openrouter
+function buildProvider() {
+  switch (process.env.PROVIDER || 'claude-cli') {
+    case 'gemini':     return new GeminiProvider(process.env.GEMINI_API_KEY);
+    case 'openrouter': return new OpenRouterProvider(process.env.OPENROUTER_API_KEY);
+    default:           return new ClaudeCLIProvider();
+  }
+}
+const provider = buildProvider();
+console.log(`[provider] ${process.env.PROVIDER || 'claude-cli'}`);
 
-const queue = new RequestQueue(parseInt(process.env.MAX_CONCURRENT || '3'));
+const queue = new RequestQueue(parseInt(process.env.MAX_CONCURRENT || '5'));
 
 // ── System Prompt ─────────────────────────────────────────────────────────────
 const SYSTEM_PROMPT = `## LANGUAGE RULE (highest priority — overrides everything else):
