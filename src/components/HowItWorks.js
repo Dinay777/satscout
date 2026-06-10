@@ -1,4 +1,5 @@
 import React from 'react';
+import { useScrollReveal } from '../lib/useScrollReveal';
 
 const text = {
   en: {
@@ -53,10 +54,11 @@ const text = {
 
 function HowItWorks({ language }) {
   const t = text[language];
+  const sectionRef = useScrollReveal();
 
   return (
     <section className="how-it-works">
-      <div className="how-it-works__inner">
+      <div className="how-it-works__inner reveal" ref={sectionRef}>
 
         <div className="how-it-works__left">
           <span className="section-label">{t.label}</span>
@@ -78,8 +80,8 @@ function HowItWorks({ language }) {
         <div className="how-it-works__right">
           <div className="how-it-works__photo-wrap">
             <img
-              src="/images/sat-book.jpg"
-              alt="The Official SAT Study Guide"
+              src="https://images.unsplash.com/photo-1522202176988-66273c2fd55f?w=600&h=650&fit=crop&auto=format&q=80"
+              alt="Students studying together with laptops"
               className="how-it-works__photo"
               loading="lazy"
             />

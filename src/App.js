@@ -11,7 +11,7 @@ import CTA from './components/CTA';
 import ResourceLibrary from './components/ResourceLibrary';
 import AIChatBuddy from './components/AIChatBuddy';
 import SummerPrograms from './components/SummerPrograms';
-// import SocialProof from './components/SocialProof'; // uncomment when real testimonials are ready
+// import SocialProof from './components/SocialProof'; // re-enable when we have real reviews
 import PhotoGallery from './components/PhotoGallery';
 import About from './components/About';
 import Auth from './components/Auth';
@@ -139,9 +139,9 @@ function App() {
         <>
           <Hero language={language} setCurrentPage={setCurrentPage} />
           <Features language={language} setCurrentPage={setCurrentPage} />
+          <HowItWorks language={language} />
           <PhotoGallery />
           {/* <SocialProof language={language} /> */}
-          <HowItWorks language={language} />
           <ResourcePreview language={language} setCurrentPage={setCurrentPage} />
           <CTA language={language} setCurrentPage={setCurrentPage} />
         </>

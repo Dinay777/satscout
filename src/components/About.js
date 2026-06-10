@@ -1,5 +1,28 @@
 import React from 'react';
 
+const VALUE_ICONS = {
+  target: (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <circle cx="12" cy="12" r="10"/>
+      <circle cx="12" cy="12" r="6"/>
+      <circle cx="12" cy="12" r="2"/>
+    </svg>
+  ),
+  globe: (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <circle cx="12" cy="12" r="10"/>
+      <line x1="2" y1="12" x2="22" y2="12"/>
+      <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
+    </svg>
+  ),
+  shield: (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+      <path d="M9 12l2 2 4-4"/>
+    </svg>
+  ),
+};
+
 const text = {
   en: {
     badge: 'Our Story',
@@ -11,17 +34,17 @@ const text = {
     valuesLabel: 'What we believe',
     values: [
       {
-        icon: '🎯',
+        iconKey: 'target',
         title: 'Quality over quantity',
         description: '25 excellent resources beat 200 mediocre ones every time. Every resource in our library was chosen because it genuinely works.',
       },
       {
-        icon: '🌍',
+        iconKey: 'globe',
         title: 'Accessibility first',
         description: 'Students in Almaty, Tashkent, or Bishkek deserve the same prep quality as students in New York. That\'s why SATScout is free and accessible to anyone.',
       },
       {
-        icon: '🤝',
+        iconKey: 'shield',
         title: 'Honest guidance',
         description: 'No affiliate links, no sponsored recommendations. If something is here, it\'s because it earned its place.',
       },
@@ -43,17 +66,17 @@ const text = {
     valuesLabel: 'Во что мы верим',
     values: [
       {
-        icon: '🎯',
+        iconKey: 'target',
         title: 'Качество важнее количества',
         description: '25 отличных ресурсов всегда лучше 200 посредственных. Каждый ресурс в библиотеке выбран потому, что он реально работает.',
       },
       {
-        icon: '🌍',
+        iconKey: 'globe',
         title: 'Доступность прежде всего',
         description: 'Студенты в Алматы, Ташкенте или Бишкеке заслуживают той же качественной подготовки, что и студенты в Нью-Йорке. Поэтому SATScout бесплатный и доступен каждому.',
       },
       {
-        icon: '🤝',
+        iconKey: 'shield',
         title: 'Честные рекомендации',
         description: 'Никаких партнёрских ссылок, никаких спонсированных рекомендаций. Если что-то есть на платформе — значит, оно это заслужило.',
       },
@@ -120,7 +143,9 @@ function About({ language }) {
           <div className="about-values__grid">
             {t.values.map((v, i) => (
               <div key={i} className="about-value-card">
-                <span className="about-value-card__icon">{v.icon}</span>
+                <div className="about-value-card__icon-wrap">
+                  {VALUE_ICONS[v.iconKey]}
+                </div>
                 <h3 className="about-value-card__title">{v.title}</h3>
                 <p className="about-value-card__description">{v.description}</p>
               </div>

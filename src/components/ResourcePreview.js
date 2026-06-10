@@ -4,29 +4,23 @@ const text = {
   en: {
     label: 'Sneak peek',
     title: 'What\'s inside the library',
-    subtitle: 'Here are some of the top resources our community loves',
-    cta: 'View All Resources →',
+    subtitle: '24 hand-picked resources, all free to access — here are the top 3.',
+    cta: 'See all 24 resources, all free →',
     resources: [
       { title: 'Khan Academy SAT Prep', type: 'Website', section: 'All Sections', difficulty: 'All Levels', price: 'Free', rating: '⭐ 4.9', color: 'blue', description: 'Official College Board partner. Personalized practice with thousands of questions and video lessons.' },
       { title: 'The Official Digital SAT Study Guide', type: 'Book', section: 'All Sections', difficulty: 'All Levels', price: '$26', rating: '⭐ 4.7', color: 'orange', description: 'Straight from College Board. 4 full practice tests with detailed explanations.' },
-      { title: 'Desmos Graphing Calculator', type: 'Tool', section: 'Math', difficulty: 'All Levels', price: 'Free', rating: '⭐ 4.8', color: 'green', description: 'The same calculator used on the actual SAT. Practice with it before test day.' },
-      { title: '1600.io', type: 'Video Course', section: 'All Sections', difficulty: 'Intermediate', price: 'Free + Paid', rating: '⭐ 4.8', color: 'purple', description: 'Expert video explanations for every official SAT question. George\'s teaching style is legendary.' },
-      { title: 'Erica Meltzer Reading Book', type: 'Book', section: 'Reading', difficulty: 'Intermediate', price: '$32', rating: '⭐ 4.6', color: 'teal', description: 'The gold standard for SAT Reading prep. Systematic approach to every question type.' },
-      { title: 'College Panda Math', type: 'Book', section: 'Math', difficulty: 'Advanced', price: '$25', rating: '⭐ 4.7', color: 'pink', description: 'Best math prep book for students aiming for 750+. Clear explanations with plenty of practice.' },
+      { title: 'Desmos Graphing Calculator', type: 'Tool', section: 'Math', difficulty: 'All Levels', price: 'Free', rating: '⭐ 4.8', color: 'green', description: 'The same calculator used on the actual SAT. Master it before test day.' },
     ]
   },
   ru: {
     label: 'Заглянем внутрь',
     title: 'Что в библиотеке',
-    subtitle: 'Некоторые из лучших ресурсов, которые любит наше сообщество',
-    cta: 'Все ресурсы →',
+    subtitle: '24 отобранных ресурса, все бесплатно — вот топ-3.',
+    cta: 'Смотреть все 24 ресурса, бесплатно →',
     resources: [
       { title: 'Khan Academy SAT Prep', type: 'Сайт', section: 'Все разделы', difficulty: 'Все уровни', price: 'Бесплатно', rating: '⭐ 4.9', color: 'blue', description: 'Официальный партнёр College Board. Персональная практика с тысячами задач и видео.' },
       { title: 'The Official Digital SAT Study Guide', type: 'Книга', section: 'Все разделы', difficulty: 'Все уровни', price: '$26', rating: '⭐ 4.7', color: 'orange', description: 'От College Board. 4 полных практических теста с подробными объяснениями.' },
-      { title: 'Desmos Graphing Calculator', type: 'Инструмент', section: 'Математика', difficulty: 'Все уровни', price: 'Бесплатно', rating: '⭐ 4.8', color: 'green', description: 'Тот самый калькулятор с настоящего SAT. Потренируйся до экзамена.' },
-      { title: '1600.io', type: 'Видеокурс', section: 'Все разделы', difficulty: 'Средний', price: 'Бесплатно + платно', rating: '⭐ 4.8', color: 'purple', description: 'Экспертные видео-разборы каждого официального вопроса SAT.' },
-      { title: 'Erica Meltzer Reading Book', type: 'Книга', section: 'Чтение', difficulty: 'Средний', price: '$32', rating: '⭐ 4.6', color: 'teal', description: 'Золотой стандарт подготовки к Reading. Системный подход к каждому типу вопросов.' },
-      { title: 'College Panda Math', type: 'Книга', section: 'Математика', difficulty: 'Продвинутый', price: '$25', rating: '⭐ 4.7', color: 'pink', description: 'Лучшая книга по математике для тех, кто целится на 750+.' },
+      { title: 'Desmos Graphing Calculator', type: 'Инструмент', section: 'Математика', difficulty: 'Все уровни', price: 'Бесплатно', rating: '⭐ 4.8', color: 'green', description: 'Тот самый калькулятор с настоящего SAT. Освой его до экзамена.' },
     ]
   }
 };
