@@ -1,98 +1,158 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+This file provides guidance to Claude Code when working with this repository.
 
 ## Commands
 
 ```bash
-npm start        # dev server at localhost:3000
-npm test         # run tests (interactive watch mode)
-npm run build    # production build
+npm start          # React dev server at localhost:3000
+npm run server     # Express backend at localhost:3001
+npm run build      # production build
+npm test           # run tests
 ```
 
 ## Project Overview
 
-SATScout is a free AI-powered SAT prep platform that gives students personalized study plans built from the best free resources across the internet. Think "Spotify for SAT prep" — we don't create content, we curate and personalize it.
+SATScout is a free AI-powered SAT prep platform. Students enter their score, target, and exam date → AI builds a personalized week-by-week study plan from curated free resources → they follow the plan, track progress, and use the AI buddy 24/7.
 
-**Target audience**: High school students preparing for SAT (English-speaking international + Russian-speaking from CIS/Europe/USA).
-
-**Core value proposition**: Student enters their current score, target score, and exam date → AI builds a personalized week-by-week study plan from curated resources → student follows the plan and tracks progress → AI buddy available 24/7 to explain problems and adjust the plan.
-
-**Domain**: satscout.org (not connected yet)
+**Slogan**: "Less guessing. More scoring."
+**Domain**: satscout.org (not yet connected to Vercel)
 **GitHub**: https://github.com/Dinay777/satscout
-**Slogan**: "Your SAT score, planned."
+**Target audience**: High school students, especially Russian-speaking (CIS/Europe/USA)
+
+## Current Deployment State
+
+- **Frontend**: Deployed on Vercel (auto-deploys from main branch)
+- **Backend**: Node.js/Express (`server.js`), currently running locally via Cloudflare tunnel. **Migrating to Hetzner VPS** (in progress as of June 2026).
+- **Database/Auth**: Supabase (connected and working)
+- **satscout.org**: domain exists, not yet connected to Vercel
+
+## What Is Already Built and Working
+
+- Landing page: Hero, Features, HowItWorks, SocialProof, PhotoGallery, CTA, Footer
+- Resource Library: search + filters, curated resources from `src/data/resources.js`
+- AI Study Buddy: real Claude (via CLI), SSE streaming, chat history saved to Supabase `chat_messages`
+- Supabase Auth: email registration/login
+- Onboarding quiz: collects score, target, exam date, weak sections, study hours
+- Dashboard: personalized task list + week strip navigation, tasks stored in Supabase `user_tasks`
+- Progress page
+- About page (with real founder story)
+- EN/RU language toggle throughout
+- Auto-profile updates via `[[PLAN_UPDATE]]` blocks parsed from AI responses
+- Plan generation: `src/lib/planGenerator.js` creates tasks in Supabase
+
+## What Is Hidden / Not Done
+
+- `SummerPrograms.js` — component exists, intentionally hidden from nav (for later)
+- satscout.org domain — not connected yet
+- Hetzner VPS backend hosting — in progress
 
 ## Architecture
 
-Create React App (React 19, no TypeScript, no router).
+### Frontend
+- **Framework**: Create React App, React 19, no TypeScript, no React Router
+- **Navigation**: `App.js` manages `currentPage` state string; all routing is conditional rendering
+- **State**: `currentPage`, `language`, `user`, `profile` all live in `App.js`
+- **i18n**: Each component has its own `text = { en: {...}, ru: {...} }`, receives `language` prop
+- **Styling**: All CSS in `src/App.css` + `src/index.css`. BEM-style classes. No Tailwind, no CSS modules.
+- **Colors**: navy `#0F1729`, blue `#3B82F6`, teal `#06B6D4`, green `#10B981`
+- **Fonts**: Space Grotesk (headings) + Outfit (body)
+- **Auth**: Supabase Auth (email). `user` and `profile` in App state. `ai-buddy` and `dashboard` are protected pages.
+- **Onboarding**: `Onboarding.js` runs if `user && !profile`
 
-**Navigation model**: `App.js` manages a `currentPage` state string (`'home'`, `'resources'`, `'ai-buddy'`). Navigation is purely conditional rendering — no React Router. The `Navbar` component calls `setCurrentPage` to switch views.
+### Backend (`server.js`)
+- Express on port 3001
+- SSE streaming for AI chat responses
+- **Provider switching** via `PROVIDER` env var: `claude-cli` (default) | `gemini` | `openrouter`
+- `MAX_CONCURRENT=5` — max parallel Claude CLI processes
+- `ALLOWED_ORIGINS` env var controls CORS (comma-separated)
+- Rate limiting: `middleware/rateLimiter.js`
+- Concurrency guard: `middleware/concurrency.js`
+- Queue: `queue/index.js` (RequestQueue)
+- PM2 config: `ecosystem.config.js`
 
-**Internationalization**: Bilingual EN/RU. Each component holds its own `text = { en: {...}, ru: {...} }` object and receives a `language` prop. The `language` state lives in `App.js` and is toggled via a button in `Navbar`.
+### AI Provider Abstraction
+All providers implement `stream(messages, systemPrompt, { onChunk, onDone, onError, signal })`:
+- `providers/claude-cli.js` — spawns `claude` binary via `child_process.spawn`. Uses `CLAUDE_BINARY` env var (default: `claude`). Active provider.
+- `providers/gemini.js` — Gemini streaming via `@google/generative-ai`. Ready, not active.
+- `providers/openrouter.js` — OpenRouter streaming via fetch. Ready, not active.
 
-**Resource data**: Static array in `src/data/resources.js`. Each resource has: `id`, `title`, `type`, `section` (array), `difficulty`, `price`, `priceAmount`, `rating`, `description`, `descriptionRu`, `url`, optional `worldcat`, `tags[]`, `recommended`.
+To switch provider: change `PROVIDER` env var and restart server. No frontend changes needed.
 
-**AI Chat (AIChatBuddy)**: Chat UI is fully built but AI backend is a placeholder (setTimeout mock). Ready to replace with actual Claude API call.
-
-**Styling**: All CSS in `src/App.css` and `src/index.css`. BEM-style class names. No CSS modules, no Tailwind. Design: minimalist with color accents — navy (#0F1729), blue (#3B82F6), teal (#06B6D4), green (#10B981). Fonts: Space Grotesk (headings) + Outfit (body).
-
-## Current State (what exists)
-
-- Landing page: hero, features (4 color cards), how it works (3 steps), resource preview (6 sample cards), CTA section, footer
-- Resource Library page: search bar, filters (section/type/price), 24 curated resources with color-coded cards
-- AI Study Buddy page: full chat UI with sidebar, message bubbles, typing animation, suggestion buttons (placeholder AI)
-- Bilingual EN/RU toggle in navbar
-- All navigation buttons work (navbar, CTA, footer)
-- Footer hidden on AI chat page
-- Scroll-to-top on page change
-
-## Pages not yet implemented
-
-- `programs` (Summer Programs) — INTENTIONALLY HIDDEN for now, will return later for application season
-- `about` — listed in Navbar but no component
-
-## Phase 1 TODO (current priority)
-
-1. **Supabase Auth** — registration/login via email. Free plan.
-2. **Onboarding quiz** — 5 interactive screens after registration: target score, exam date, practice test score, weak sections, study hours/week. Beautiful button-based UI, not boring forms.
-3. **Dashboard** — personalized study plan view after login. Includes:
-   - Today's Tasks (3 specific tasks for today)
-   - Weekly Plan (current week's plan)
-   - Progress visual (progress bar or chart)
-   - Estimated score tracker
-4. **Access control** — Before login: landing page, resource library, about. After login: dashboard, AI buddy, resource library, about.
-5. **Hide Summer Programs tab** from nav (keep code for later).
-6. **Visual polish** — replace emoji with proper icons (lucide-react), add subtle hover animations, consider adding stock photos to hero.
-7. **Connect Claude API** for AI Study Buddy (via Vercel serverless function).
-8. **Deploy to Vercel** and connect satscout.org domain.
-
-## File Structure
-
+### Key Frontend Files
 ```
 src/
-  App.js              — main app with routing logic
-  App.css             — all styles (single file)
-  index.js            — entry point
-  index.css           — base styles
+  App.js                  — root: state, routing, auth listener
+  App.css                 — all styles
   components/
-    Navbar.js          — navigation with language toggle
-    Hero.js            — landing page hero section
-    Features.js        — 4 feature cards
-    HowItWorks.js      — 3-step explainer
-    ResourcePreview.js — 6 sample resource cards
-    CTA.js             — call-to-action before footer
-    ResourceLibrary.js — full resource page with filters
-    AIChatBuddy.js     — AI chat interface (placeholder)
-    Footer.js          — footer with nav links
+    Navbar.js             — nav + language toggle
+    Hero.js               — hero section (slogan: "Less guessing. More scoring.")
+    Features.js           — 4 feature cards (Study Planner + Dashboard tagged "New")
+    HowItWorks.js         — 3-step explainer + sat-book.jpg photo
+    SocialProof.js        — social proof section
+    PhotoGallery.js       — auto-scrolling photo strip (local + Unsplash)
+    CTA.js                — call to action
+    Footer.js             — footer
+    Auth.js               — login/signup
+    Onboarding.js         — post-signup quiz
+    AIChatBuddy.js        — chat UI, SSE streaming, profile updates
+    Dashboard.js          — task list + week strip navigation
+    Progress.js           — score progress view
+    ResourceLibrary.js    — filterable resource list
+    ResourcePreview.js    — 6 sample cards on landing
+    About.js              — founder story + mission
+    SummerPrograms.js     — HIDDEN, do not add to nav
   data/
-    resources.js       — 24 SAT resources database
+    resources.js          — curated SAT resource database
+  lib/
+    planGenerator.js      — creates tasks in Supabase user_tasks
+    studyPlan.js          — study plan logic + week calculations
+    supabase.js           — Supabase client
+public/
+  images/
+    sat-book.jpg          — local photo used in HowItWorks + PhotoGallery
+```
+
+### Key Backend Files
+```
+server.js               — Express app, routes, SSE, PLAN_UPDATE parsing
+ecosystem.config.js     — PM2 config (1 instance, fork mode)
+providers/
+  base.js               — BaseProvider class
+  claude-cli.js         — active AI provider
+  gemini.js             — ready for future use
+  openrouter.js         — ready for future use
+middleware/
+  rateLimiter.js
+  concurrency.js
+queue/
+  index.js              — RequestQueue
+```
+
+## Environment Variables
+
+```env
+# Backend (.env — not in git)
+NODE_ENV=production
+PORT=3001
+ANTHROPIC_API_KEY=...
+CLAUDE_BINARY=/path/to/claude   # find with: which claude
+CLAUDE_MODEL=haiku
+CLAUDE_TIMEOUT_MS=90000
+MAX_CONCURRENT=5
+SUPABASE_URL=...
+SUPABASE_SERVICE_ROLE_KEY=...
+ALLOWED_ORIGINS=https://satscout.org,https://satscout.vercel.app
+PROVIDER=claude-cli             # claude-cli | gemini | openrouter
+
+# Frontend (Vercel env vars)
+REACT_APP_API_URL=https://api.satscout.org   # backend URL
 ```
 
 ## Design Principles
 
-- Minimalist but not boring — use color gradients on cards, subtle animations
-- Mobile-first responsive design
-- Gen Z friendly — clean, fast, no clutter
-- Show only "Today's Tasks" on dashboard, not the full overwhelming plan
-- Onboarding must feel like a conversation, not a form
-- The "aha moment" = seeing your personalized plan within 5 minutes of signing up
+- Bilingual EN/RU — always update both language objects in every component
+- No TypeScript, no React Router — keep it simple
+- Responses short: one idea per paragraph, no long intros
+- "Today's Tasks" only on dashboard — don't overwhelm with the full plan
+- Onboarding feels like a conversation, not a form
