@@ -9,6 +9,9 @@ module.exports = {
 
     env_production: {
       NODE_ENV: 'production',
+      PROVIDER: 'gemini',
+      GEMINI_MODEL: 'gemini-2.5-flash',
+      MAX_CONCURRENT: '10',
     },
 
     // Log config

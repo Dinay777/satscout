@@ -73,8 +73,8 @@ SATScout is a free AI-powered SAT prep platform. Students enter their score, tar
 
 ### AI Provider Abstraction
 All providers implement `stream(messages, systemPrompt, { onChunk, onDone, onError, signal })`:
-- `providers/claude-cli.js` — spawns `claude` binary via `child_process.spawn`. Uses `CLAUDE_BINARY` env var (default: `claude`). Active provider.
-- `providers/gemini.js` — Gemini streaming via `@google/generative-ai`. Ready, not active.
+- `providers/claude-cli.js` — spawns `claude` binary via `child_process.spawn`. Uses `CLAUDE_BINARY` env var (default: `claude`). NOT active.
+- `providers/gemini.js` — Gemini streaming via `@google/generative-ai`. **Active provider.**
 - `providers/openrouter.js` — OpenRouter streaming via fetch. Ready, not active.
 
 To switch provider: change `PROVIDER` env var and restart server. No frontend changes needed.

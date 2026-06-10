@@ -1,19 +1,15 @@
+const { GoogleGenerativeAI } = require('@google/generative-ai');
 const BaseProvider = require('./base');
 
-// To activate: npm install @google/generative-ai
-// Set GEMINI_API_KEY in .env
-// In server.js: const provider = new GeminiProvider(process.env.GEMINI_API_KEY);
 class GeminiProvider extends BaseProvider {
   constructor(apiKey) {
     super();
-    this.apiKey = apiKey;
+    this.genAI = new GoogleGenerativeAI(apiKey);
   }
 
   stream(messages, systemPrompt, { onChunk, onDone, onError, signal }) {
-    const { GoogleGenerativeAI } = require('@google/generative-ai');
-    const genAI = new GoogleGenerativeAI(this.apiKey);
-    const model = genAI.getGenerativeModel({
-      model: process.env.GEMINI_MODEL || 'gemini-1.5-flash',
+    const model = this.genAI.getGenerativeModel({
+      model: process.env.GEMINI_MODEL || 'gemini-2.5-flash',
       systemInstruction: systemPrompt,
     });
 

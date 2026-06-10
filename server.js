@@ -18,7 +18,8 @@ const ALLOWED_ORIGINS = process.env.ALLOWED_ORIGINS
 
 app.use(cors({
   origin: (origin, callback) => {
-    if (!origin || ALLOWED_ORIGINS.some(o => origin === o || (o.includes('*') && origin.includes(o.replace('*', ''))))) {
+    const isDev = process.env.NODE_ENV !== 'production';
+    if (!origin || (isDev && origin.startsWith('http://localhost')) || ALLOWED_ORIGINS.some(o => origin === o || (o.includes('*') && origin.includes(o.replace('*', ''))))) {
       callback(null, true);
     } else {
       callback(new Error('Not allowed by CORS'));
@@ -329,6 +330,6 @@ app.post('/api/chat', rateLimiter, concurrencyGuard(queue), async (req, res) => 
 const PORT = process.env.PORT || 3001;
 app.listen(PORT, () => {
   console.log(`SATScout backend running on http://localhost:${PORT}`);
-  console.log(`Provider: Claude CLI (${process.env.CLAUDE_BINARY || '/opt/homebrew/bin/claude'})`);
+  console.log(`Provider: ${process.env.PROVIDER || 'claude-cli'}`);
   console.log(`Max concurrent processes: ${process.env.MAX_CONCURRENT || 5}`);
 });
