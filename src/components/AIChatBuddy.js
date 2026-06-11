@@ -92,7 +92,8 @@ function AIChatBuddy({ language, user, profile, onProfileUpdate, setCurrentPage,
     try {
       await generateAndSavePlan(latestProfileRef.current, user.id, planTasksRef.current, scheduledDaysRef.current);
       if (onProfileUpdate) {
-        const today = new Date().toISOString().slice(0, 10);
+        const _d = new Date();
+        const today = `${_d.getFullYear()}-${String(_d.getMonth()+1).padStart(2,'0')}-${String(_d.getDate()).padStart(2,'0')}`;
         onProfileUpdate({
           ...latestProfileRef.current,
           plan_created: true,
@@ -178,7 +179,12 @@ function AIChatBuddy({ language, user, profile, onProfileUpdate, setCurrentPage,
         const completed = allTasks.filter(t => t.completed).length;
         const planStartDate = latestProfileRef.current.plan_start_date;
         const dayNum = planStartDate
-          ? Math.max(1, Math.floor((Date.now() - new Date(planStartDate).getTime()) / 86400000) + 1)
+          ? (() => {
+              const [y, m, day] = planStartDate.split('-').map(Number);
+              const start = new Date(y, m - 1, day); start.setHours(0,0,0,0);
+              const now = new Date(); now.setHours(0,0,0,0);
+              return Math.max(1, Math.floor((now - start) / 86400000) + 1);
+            })()
           : 1;
         taskStats = { total, completed, dayNum };
       }

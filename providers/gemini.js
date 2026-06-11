@@ -1,32 +1,34 @@
-const { GoogleGenerativeAI } = require('@google/generative-ai');
+const { GoogleGenAI } = require('@google/genai');
 const BaseProvider = require('./base');
 
 class GeminiProvider extends BaseProvider {
   constructor(apiKey) {
     super();
-    this.genAI = new GoogleGenerativeAI(apiKey);
+    this.ai = new GoogleGenAI({ apiKey });
   }
 
   stream(messages, systemPrompt, { onChunk, onDone, onError, signal }) {
-    const model = this.genAI.getGenerativeModel({
-      model: process.env.GEMINI_MODEL || 'gemini-2.5-flash',
-      systemInstruction: systemPrompt,
-    });
+    const model = process.env.GEMINI_MODEL || 'gemini-2.5-flash';
 
-    // Gemini uses 'user'/'model' roles, not 'user'/'assistant'
-    const history = messages.slice(0, -1).map(m => ({
+    // @google/genai uses 'user'/'model' roles
+    const contents = messages.map(m => ({
       role: m.role === 'assistant' ? 'model' : 'user',
       parts: [{ text: m.content }],
     }));
-    const lastMessage = messages[messages.length - 1].content;
 
     const run = async () => {
-      const chat = model.startChat({ history });
-      const result = await chat.sendMessageStream(lastMessage);
+      const stream = await this.ai.models.generateContentStream({
+        model,
+        contents,
+        config: {
+          systemInstruction: systemPrompt,
+          thinkingConfig: { thinkingBudget: 0 },
+        },
+      });
 
-      for await (const chunk of result.stream) {
+      for await (const chunk of stream) {
         if (signal?.aborted) return;
-        const text = chunk.text();
+        const text = chunk.text;
         if (text) onChunk(text);
       }
       onDone();

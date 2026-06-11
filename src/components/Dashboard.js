@@ -12,6 +12,7 @@ import {
   getWeekCalendar,
   DAY_SHORT_EN,
   DAY_SHORT_RU,
+  localToday,
 } from '../lib/studyPlan';
 
 const TYPE_META = {
@@ -150,7 +151,7 @@ function Dashboard({ user, profile, language, setCurrentPage, onProfileUpdate, o
     setConfetti(true);
     setTimeout(() => setConfetti(false), 1800);
 
-    const todayStr = new Date().toISOString().slice(0, 10);
+    const todayStr = localToday();
     const allDoneNow = updatedTasks.every(t => t.completed);
 
     if (hasSchedule) {
@@ -178,7 +179,8 @@ function Dashboard({ user, profile, language, setCurrentPage, onProfileUpdate, o
     } else {
       // Legacy day mode
       if (profile.last_active_date !== todayStr) {
-        const yesterday = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
+        const d = new Date(); d.setDate(d.getDate() - 1);
+        const yesterday = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
         const newStreak = profile.last_active_date === yesterday ? streak + 1 : 1;
         const longest = Math.max(newStreak, profile.longest_streak ?? 0);
         await supabase.from('profiles').update({

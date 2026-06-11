@@ -266,7 +266,15 @@ app.post('/api/chat', rateLimiter, concurrencyGuard(queue), async (req, res) => 
   res.flushHeaders();
 
   const controller = new AbortController();
-  req.on('close', () => controller.abort());
+  res.on('close', () => {
+    if (!res.writableEnded) controller.abort();
+  });
+
+  // Keepalive: send SSE comments every 2s so the connection doesn't drop
+  // while waiting for the first Gemini chunk (can take 3-5s with large context)
+  const keepAlive = setInterval(() => {
+    if (!res.writableEnded) res.write(': ka\n\n');
+  }, 2000);
 
   try {
     await queue.enqueue(() =>
@@ -284,6 +292,7 @@ app.post('/api/chat', rateLimiter, concurrencyGuard(queue), async (req, res) => 
             }
           },
           onDone: () => {
+            clearInterval(keepAlive);
             process.stdout.write('\n─────────────────────────────\n');
             // Extract plan update block before sending [DONE]
             const planMatch = fullResponse.match(/\[\[PLAN_UPDATE\]\]([\s\S]*?)\[\[\/PLAN_UPDATE\]\]/);
@@ -310,6 +319,7 @@ app.post('/api/chat', rateLimiter, concurrencyGuard(queue), async (req, res) => 
             resolve();
           },
           onError: (err) => {
+            clearInterval(keepAlive);
             console.error('[chat error]', err.message);
             if (!res.writableEnded) {
               res.write(`data: ${JSON.stringify({ error: 'Something went wrong. Please try again.' })}\n\n`);
@@ -322,6 +332,7 @@ app.post('/api/chat', rateLimiter, concurrencyGuard(queue), async (req, res) => 
       })
     );
   } catch (_) {
+    clearInterval(keepAlive);
     if (!res.writableEnded) res.end();
   }
 });
