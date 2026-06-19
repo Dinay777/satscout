@@ -191,12 +191,34 @@ function AIChatBuddy({ language, user, profile, onProfileUpdate, setCurrentPage,
     }
 
     try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) {
+        const loginMsg = language === 'ru'
+          ? 'Пожалуйста, войди в аккаунт чтобы использовать AI помощника.'
+          : 'Please log in to use the AI Study Buddy.';
+        setIsLoading(false);
+        setMessages(prev => [...prev, { role: 'assistant', content: loginMsg }]);
+        return;
+      }
+
       const API_BASE = process.env.REACT_APP_API_URL || '';
       const response = await fetch(`${API_BASE}/api/chat`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`,
+        },
         body: JSON.stringify({ messages: apiMessages, language, profile, taskStats }),
       });
+
+      if (response.status === 401) {
+        const reloginMsg = language === 'ru'
+          ? 'Сессия истекла. Пожалуйста, войди снова.'
+          : 'Your session has expired. Please log in again.';
+        setIsLoading(false);
+        setMessages(prev => [...prev, { role: 'assistant', content: reloginMsg }]);
+        return;
+      }
 
       if (!response.ok) throw new Error(`Server error ${response.status}`);
 
@@ -472,7 +494,7 @@ function AIChatBuddy({ language, user, profile, onProfileUpdate, setCurrentPage,
               <button
                 className={`chat-send ${input.trim() ? 'chat-send--active' : ''}`}
                 onClick={() => sendMessage()}
-                disabled={!input.trim() || isLoading || historyLoading}
+                disabled={!input.trim() || isLoading || historyLoading || !user}
               >
                 {t.send}
               </button>
