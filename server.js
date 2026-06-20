@@ -9,6 +9,7 @@ const OpenRouterProvider = require('./providers/openrouter');
 const RequestQueue = require('./queue');
 const rateLimiter = require('./middleware/rateLimiter');
 const concurrencyGuard = require('./middleware/concurrency');
+const { requireAuth } = require('./middleware/auth');
 
 const app = express();
 
@@ -251,7 +252,14 @@ app.get('/api/health', (req, res) => {
   });
 });
 
-app.post('/api/chat', rateLimiter, concurrencyGuard(queue), async (req, res) => {
+// Auth is opt-in: only enforced when REQUIRE_AUTH === 'true' (default off).
+// Evaluated once at startup so Railway env vars take effect on next deploy/restart.
+const authGuard = process.env.REQUIRE_AUTH === 'true'
+  ? requireAuth
+  : (req, res, next) => next();
+console.log(`[auth] ${process.env.REQUIRE_AUTH === 'true' ? 'enabled' : 'WARN: disabled — set REQUIRE_AUTH=true to enable'}`);
+
+app.post('/api/chat', authGuard, rateLimiter, concurrencyGuard(queue), async (req, res) => {
   const { messages, profile, taskStats } = req.body;
   console.log('[profile received]', JSON.stringify(profile));
 
