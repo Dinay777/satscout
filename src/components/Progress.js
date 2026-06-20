@@ -4,7 +4,7 @@ import {
   Tooltip, ReferenceLine, ResponsiveContainer, Area, AreaChart,
 } from 'recharts';
 import { supabase } from '../lib/supabase';
-import { getCurrentScoreNum, getDaysUntilTest } from '../lib/studyPlan';
+import { getCurrentScoreNum, getDaysUntilTest, parseLocalDate } from '../lib/studyPlan';
 
 function Progress({ user, profile, language, setCurrentPage }) {
   const [tasks, setTasks]       = useState([]);
@@ -26,7 +26,8 @@ function Progress({ user, profile, language, setCurrentPage }) {
       .then(({ data }) => {
         setTasks(data ?? []);
         setLoading(false);
-      });
+      })
+      .catch(() => setLoading(false));
   }, [user.id]);
 
   if (loading) {
@@ -63,11 +64,11 @@ function Progress({ user, profile, language, setCurrentPage }) {
     .reduce((sum, t) => sum + (t.duration_minutes || 30), 0) / 60;
 
   // Build weekly chart data
-  const planStartDate = profile.plan_start_date ? new Date(profile.plan_start_date) : new Date();
+  const planStartDate = profile.plan_start_date ? parseLocalDate(profile.plan_start_date) : new Date();
   const weeklyData = buildWeeklyData(tasks, planStartDate, startScore, targetScore);
 
   // Current week stats
-  const today = new Date();
+  const today = new Date(); today.setHours(0, 0, 0, 0);
   const dayNum = Math.max(1, Math.floor((today - planStartDate) / 86400000) + 1);
   const weekStart = dayNum - ((dayNum - 1) % 7);
   const weekEnd   = weekStart + 6;

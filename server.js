@@ -78,8 +78,9 @@ Never default to Russian just because this prompt is in Russian.
   2. Спроси: "Нужен детальный план на каждый день?"
   3. Только если просят — давай детальный: ресурс → раздел → задачи/минуты → порядок
   4. В конце плана — спроси что не нравится, предложи альтернативы
-- Проверяешь понимание — после объяснения предлагай похожий вопрос
+- Проверяешь понимание — после объяснения концепта предлагай похожий практический вопрос; называй типичный паттерн ошибки по этой теме
 - Мотивируешь, напоминаешь что ошибки это нормально
+- Crunch mode (exam_timeframe = "under-4-weeks" + текущий балл ≥ 1100): не трать время на основы — только full timed practice tests (Bluebook App) + targeted review каждой ошибки. Не рекомендуй книги для чтения с нуля.
 
 ## Что ты НЕ делаешь:
 - Не пишешь эссе за студента
@@ -155,7 +156,7 @@ PAID:
 - exam_timeframe: "under-4-weeks" | "1-2-months" | "2-4-months" | "4-6-months" | "6-months-plus"
 - study_hours: "less-than-1" | "1-2" | "2-3" | "3-plus"
 - plan_created: true (добавляй ТОЛЬКО когда создаёшь или обновляешь конкретный план)
-- plan_summary: строка 2-3 предложения — суть плана (цель, сроки, ключевые ресурсы). Пиши на том языке на котором общается студент.
+- plan_summary: строка 2-3 предложения — суть плана. ОБЯЗАТЕЛЬНО включи: (1) первый конкретный ресурс и тему для старта, (2) базовый еженедельный ритм, (3) цель и сроки. Пиши на том языке на котором общается студент.
 - plan_tasks: ОБЯЗАТЕЛЬНО при plan_created=true. Массив задач на ОДНУ НЕДЕЛЮ (сессий, не дней), по 2-3 задачи на сессию. Количество сессий в шаблоне = sessions_per_week. Каждая задача: {"day":N,"title":"Конкретное название задачи","task_type":"video"|"practice"|"read","resource_name":"Название ресурса из списка выше","resource_url":"URL ресурса","duration_minutes":N}. Используй ТОЛЬКО ресурсы из одобренного списка выше. task_type: "video" для YouTube, "practice" для практики/тестов, "read" для книг/статей.
 - sessions_per_week: integer — количество занятий в неделю (из ответа студента на вопрос д). Default 3.
 - scheduled_days: массив чисел [0-6] — дни недели для занятий, где 0=воскресенье, 1=понедельник, 2=вторник, 3=среда, 4=четверг, 5=пятница, 6=суббота. Выбирай оптимально: для 3x/week → [1,3,5] (пн/ср/пт), для 5x/week → [1,2,3,4,5], для 2x/week → [2,5] (вт/пт). ОБЯЗАТЕЛЬНО при plan_created=true.`;
@@ -163,7 +164,7 @@ PAID:
 // ── Profile sanitization (prompt injection defence) ───────────────────────────
 const VALID_SECTIONS = new Set(['math', 'reading']);
 const VALID_TIMEFRAMES = new Set(['under-4-weeks', '1-2-months', '2-4-months', '4-6-months', '6-months-plus']);
-const VALID_HOURS = new Set(['less-than-1', '1-2', '1-3', '2-3', '3-5', '3-plus', '5-plus']);
+const VALID_HOURS = new Set(['less-than-1', '1-2', '1-3', '2-3', '3-5', '3-plus', '5-plus', '4-6', '7-10', '10+']);
 const VALID_SCORE_KEYS = new Set(['none', 'below-900', '900-1000', '1000-1100', '1100-1200', '1200-1300', '1300-1400', '1400-1500', '1500+']);
 
 function sanitizeStr(v, maxLen = 500) {
@@ -240,6 +241,9 @@ const HOURS_LABELS = {
   '3-5': '3–5 hours/week',
   '3-plus': '3+ hours/week',
   '5-plus': '5+ hours/week',
+  '4-6': '4–6 hours/week',
+  '7-10': '7–10 hours/week',
+  '10+': '10+ hours/week',
 };
 
 function formatStudentContext(profile, taskStats) {

@@ -15,6 +15,18 @@ const TASKS_PER_DAY = {
   '3-plus': 3,
 };
 
+// Map legacy Onboarding study_hours values to TASKS_PER_DAY keys
+const STUDY_HOURS_MAP = {
+  '1-3':  '1-2',
+  '4-6':  '2-3',
+  '7-10': '3-plus',
+  '10+':  '3-plus',
+};
+
+function normalizeStudyHours(val) {
+  return STUDY_HOURS_MAP[val] ?? val;
+}
+
 const MATH_TASKS = {
   foundation: [
     { title: 'Watch: Heart of Algebra overview', task_type: 'video', resource_name: 'Scalar Learning', resource_url: 'https://www.youtube.com/@ScalarLearning', duration_minutes: 20 },
@@ -116,7 +128,7 @@ function getPhase(dayNumber, totalDays) {
 
 export async function generateAndSavePlan(profile, userId, aiTasks = null, scheduledDays = null) {
   const totalDays = TIMEFRAME_DAYS[profile.exam_timeframe] ?? 60;
-  const tasksPerDay = TASKS_PER_DAY[profile.study_hours] ?? 2;
+  const tasksPerDay = TASKS_PER_DAY[normalizeStudyHours(profile.study_hours)] ?? 2;
   const sections = profile.weak_sections ?? ['math', 'reading'];
   const focusMath = sections.includes('math');
   const focusReading = sections.includes('reading');

@@ -61,7 +61,7 @@ function Auth({ language, onAuth }) {
 
     try {
       if (mode === 'register') {
-        const { error } = await supabase.auth.signUp({ email, password });
+        const { error } = await supabase.auth.signUp({ email, password, options: { emailRedirectTo: window.location.origin } });
         if (error) throw error;
         setSuccess(email);
       } else {

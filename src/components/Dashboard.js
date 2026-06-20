@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '../lib/supabase';
 import {
   getDaysUntilTest,
@@ -51,8 +51,10 @@ const READING_TOPICS = {
 
 function getDayNumber(planStartDate) {
   if (!planStartDate) return 1;
-  const diff = Date.now() - new Date(planStartDate).getTime();
-  return Math.max(1, Math.floor(diff / 86400000) + 1);
+  const [y, m, d] = planStartDate.split('-').map(Number);
+  const start = new Date(y, m - 1, d); start.setHours(0, 0, 0, 0);
+  const now = new Date(); now.setHours(0, 0, 0, 0);
+  return Math.max(1, Math.floor((now - start) / 86400000) + 1);
 }
 
 function Dashboard({ user, profile, language, setCurrentPage, onProfileUpdate, onStartPlan }) {
@@ -63,6 +65,8 @@ function Dashboard({ user, profile, language, setCurrentPage, onProfileUpdate, o
   const [confetti, setConfetti]     = useState(false);
   const [rebuilding, setRebuilding] = useState(false);
   const [selectedDay, setSelectedDay] = useState(null);
+  const tasksRef = useRef([]);
+  useEffect(() => { tasksRef.current = tasks; }, [tasks]);
 
   const greeting  = getGreeting(language);
   const emailName = user?.email?.split('@')[0] ?? '';
@@ -136,17 +140,18 @@ function Dashboard({ user, profile, language, setCurrentPage, onProfileUpdate, o
       const all = allRes.data ?? [];
       setAllTasksStats({ total: all.length, completed: all.filter(t => t.completed).length });
       setTasksLoading(false);
-    });
+    }).catch(() => setTasksLoading(false));
   }, [user.id, profile.plan_created, dayNum, sessionNum, hasSchedule]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Mark task complete ────────────────────────────────────────────────────
   const markComplete = useCallback(async (taskId) => {
     const now = new Date().toISOString();
-    await supabase.from('user_tasks')
+    const { error: dbErr } = await supabase.from('user_tasks')
       .update({ completed: true, completed_at: now })
       .eq('id', taskId);
+    if (dbErr) return;
 
-    const updatedTasks = tasks.map(t => t.id === taskId ? { ...t, completed: true } : t);
+    const updatedTasks = tasksRef.current.map(t => t.id === taskId ? { ...t, completed: true } : t);
     setTasks(updatedTasks);
     setConfetti(true);
     setTimeout(() => setConfetti(false), 1800);
@@ -191,7 +196,7 @@ function Dashboard({ user, profile, language, setCurrentPage, onProfileUpdate, o
         if (onProfileUpdate) onProfileUpdate({ ...profile, current_streak: newStreak, last_active_date: todayStr });
       }
     }
-  }, [profile, streak, user.id, onProfileUpdate, tasks, hasSchedule, scheduledDays]);
+  }, [profile, streak, user.id, onProfileUpdate, hasSchedule, scheduledDays]);
 
   // ── Unmark task ───────────────────────────────────────────────────────────
   const unmarkComplete = useCallback(async (taskId) => {
@@ -205,16 +210,19 @@ function Dashboard({ user, profile, language, setCurrentPage, onProfileUpdate, o
   const rebuildPlan = async () => {
     if (!window.confirm(ru ? 'Удалить текущий план и начать заново?' : 'Delete current plan and start over?')) return;
     setRebuilding(true);
-    await supabase.from('user_tasks').delete().eq('user_id', user.id);
-    await supabase.from('profiles').update({
-      plan_created: false,
-      plan_summary: null,
-      plan_start_date: null,
-      daily_tasks: null,
-    }).eq('user_id', user.id);
-    if (onProfileUpdate) onProfileUpdate({ ...profile, plan_created: false, plan_summary: null, plan_start_date: null });
-    setRebuilding(false);
-    setCurrentPage('ai-buddy');
+    try {
+      await supabase.from('user_tasks').delete().eq('user_id', user.id);
+      await supabase.from('profiles').update({
+        plan_created: false,
+        plan_summary: null,
+        plan_start_date: null,
+        daily_tasks: null,
+      }).eq('user_id', user.id);
+      if (onProfileUpdate) onProfileUpdate({ ...profile, plan_created: false, plan_summary: null, plan_start_date: null });
+      setCurrentPage('ai-buddy');
+    } finally {
+      setRebuilding(false);
+    }
   };
 
   // ── Empty state ───────────────────────────────────────────────────────────
@@ -333,6 +341,9 @@ function Dashboard({ user, profile, language, setCurrentPage, onProfileUpdate, o
               <span className="dash-score-bar__ep-label">{ru ? 'Цель' : 'Goal Score'}</span>
             </div>
           </div>
+          <button className="dash-progress-link" onClick={() => setCurrentPage('progress')}>
+            {ru ? 'Детальный прогресс →' : 'Detailed progress →'}
+          </button>
         </div>
 
         {/* ── Today's Tasks ── */}

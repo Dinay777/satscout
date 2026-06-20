@@ -68,7 +68,8 @@ function App() {
         setProfile(data ?? null);
         if (data) setCurrentPage('dashboard');
         setProfileLoading(false);
-      });
+      })
+      .catch(() => setProfileLoading(false));
   }, [user]);
 
   useEffect(() => {
@@ -107,7 +108,7 @@ function App() {
   }
 
   // ── Protected pages: redirect to auth ──
-  const protectedPages = ['ai-buddy', 'dashboard'];
+  const protectedPages = ['ai-buddy', 'dashboard', 'progress'];
   if (protectedPages.includes(currentPage) && !user) {
     return (
       <>
@@ -174,7 +175,7 @@ function App() {
           setCurrentPage={setCurrentPage}
           onProfileUpdate={(updated) => setProfile(updated)}
           onStartPlan={() => {
-            setPendingChatMessage("Let's build my study plan →");
+            setPendingChatMessage(language === 'ru' ? 'Составить мой план подготовки →' : "Let's build my study plan →");
             setCurrentPage('ai-buddy');
           }}
         />

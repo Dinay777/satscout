@@ -9,12 +9,13 @@ const steps = {
       subtitle: "Dream big — we'll map every step to get you there.",
       type: 'single',
       options: [
+        { label: '900–1000',  value: 950  },
         { label: '1000–1100', value: 1050 },
         { label: '1100–1200', value: 1150 },
         { label: '1200–1300', value: 1250 },
         { label: '1300–1400', value: 1350 },
-        { label: '1400–1500', value: 1450, accent: true, sub: 'top 4%' },
-        { label: '1500+', value: 1520, accent: true, sub: 'top 1%' },
+        { label: '1400–1500', value: 1450, accent: true, sub: 'top 7%' },
+        { label: '1500+', value: 1520, accent: true, sub: 'top 2%' },
       ],
     },
     {
@@ -78,12 +79,13 @@ const steps = {
       subtitle: 'Мечтай по-крупному — мы составим план для каждого шага.',
       type: 'single',
       options: [
+        { label: '900–1000',  value: 950  },
         { label: '1000–1100', value: 1050 },
         { label: '1100–1200', value: 1150 },
         { label: '1200–1300', value: 1250 },
         { label: '1300–1400', value: 1350 },
-        { label: '1400–1500', value: 1450, accent: true, sub: 'топ 4%' },
-        { label: '1500+', value: 1520, accent: true, sub: 'топ 1%' },
+        { label: '1400–1500', value: 1450, accent: true, sub: 'топ 7%' },
+        { label: '1500+', value: 1520, accent: true, sub: 'топ 2%' },
       ],
     },
     {
@@ -102,10 +104,10 @@ const steps = {
     {
       id: 'current_score',
       question: 'Какой у тебя текущий балл?',
-      subtitle: 'Не переживай, если ещё не сдавала пробный тест.',
+      subtitle: 'Не переживай, если ещё не сдавал(а) пробный тест.',
       type: 'single',
       options: [
-        { label: 'Ещё не сдавала',  value: 'none',       sub: 'всё нормально' },
+        { label: 'Ещё не сдавал(а)',  value: 'none',       sub: 'всё нормально' },
         { label: 'Ниже 900',        value: 'below-900' },
         { label: '900–1000',        value: '900-1000' },
         { label: '1000–1100',       value: '1000-1100' },
@@ -129,7 +131,7 @@ const steps = {
     },
     {
       id: 'study_hours',
-      question: 'Сколько часов в неделю ты готова учиться?',
+      question: 'Сколько часов в неделю ты готов(а) учиться?',
       subtitle: 'Честный ответ лучше оптимистичного — важна стабильность.',
       type: 'single',
       options: [
@@ -189,25 +191,30 @@ function Onboarding({ user, language, onComplete }) {
   const saveProfile = async (finalAnswers) => {
     setSaving(true);
     setError('');
-    const { data, error: err } = await supabase
-      .from('profiles')
-      .insert({
-        user_id: user.id,
-        target_score:   finalAnswers.target_score,
-        current_score:  finalAnswers.current_score,
-        exam_timeframe: finalAnswers.exam_timeframe,
-        weak_sections:  finalAnswers.weak_sections,
-        study_hours:    finalAnswers.study_hours,
-      })
-      .select()
-      .single();
-
-    if (err) {
-      setError(err.message);
+    try {
+      const { data, error: err } = await Promise.race([
+        supabase
+          .from('profiles')
+          .insert({
+            user_id: user.id,
+            target_score:   finalAnswers.target_score,
+            current_score:  finalAnswers.current_score,
+            exam_timeframe: finalAnswers.exam_timeframe,
+            weak_sections:  finalAnswers.weak_sections,
+            study_hours:    finalAnswers.study_hours,
+          })
+          .select()
+          .single(),
+        new Promise((_, reject) =>
+          setTimeout(() => reject(new Error(lang === 'ru' ? 'Сервер не отвечает. Попробуй снова.' : 'Server not responding. Please try again.')), 15000)
+        ),
+      ]);
+      if (err) { setError(err.message); setSaving(false); return; }
+      onComplete(data);
+    } catch (e) {
+      setError(e.message);
       setSaving(false);
-      return;
     }
-    onComplete(data);
   };
 
   if (saving) {
@@ -237,6 +244,11 @@ function Onboarding({ user, language, onComplete }) {
 
       {/* Step content */}
       <div className="onboarding__body" key={step}>
+        {step > 0 && (
+          <button className="onboarding__back" onClick={() => setStep(s => s - 1)} disabled={saving}>
+            {lang === 'ru' ? '← Назад' : '← Back'}
+          </button>
+        )}
         <h1 className="onboarding__question">{current.question}</h1>
         <p className="onboarding__subtitle">{current.subtitle}</p>
 
@@ -248,6 +260,7 @@ function Onboarding({ user, language, onComplete }) {
                 key={opt.value}
                 className={`onboarding__option ${opt.accent ? 'onboarding__option--accent' : ''}`}
                 onClick={() => handleSingle(opt.value)}
+                disabled={saving}
               >
                 <span className="onboarding__option-label">
                   {opt.emoji && <span className="onboarding__option-emoji">{opt.emoji}</span>}
@@ -270,6 +283,7 @@ function Onboarding({ user, language, onComplete }) {
                     key={opt.value}
                     className={`onboarding__option onboarding__option--big ${selected ? 'onboarding__option--selected' : ''}`}
                     onClick={() => toggleMulti(opt.value)}
+                    disabled={saving}
                   >
                     <span className="onboarding__option-emoji">{opt.emoji}</span>
                     <span className="onboarding__option-label">{opt.label}</span>

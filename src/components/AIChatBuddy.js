@@ -9,26 +9,32 @@ const text = {
     placeholder: 'Ask about SAT strategies, problem solving, study plans...',
     send: '→',
     welcome: 'Hey! 👋 I\'m your SAT Study Buddy. I can help you with:\n\n• **Explain SAT concepts** — ask me about any math topic, reading strategy, or grammar rule\n• **Break down problems** — paste a question and I\'ll walk you through it step by step\n• **Build a study plan** — tell me your test date, current score, and goal\n• **Recommend resources** — I know every resource in our library\n\nWhat would you like help with?',
-    welcomeRu: 'Привет! 👋 Я твой AI помощник для SAT. Я могу:\n\n• **Объяснить концепты SAT** — спроси о любой теме\n• **Разобрать задачу** — пришли вопрос и я разберу его пошагово\n• **Составить план** — скажи дату экзамена, текущий и целевой балл\n• **Порекомендовать ресурсы** — я знаю всю нашу библиотеку\n\nЧем помочь?',
     welcomePlan: "Hey! 👋 I'm ready to build your personalized study plan.\n\nI'll ask you a few quick questions so the plan actually fits your life — your schedule, your weak spots, how you like to study.\n\nReady? Click below to get started.",
-    welcomePlanRu: 'Привет! 👋 Готов составить твой персональный план подготовки.\n\nЗадам несколько вопросов чтобы план реально подходил тебе — твоё расписание, слабые места, как тебе удобнее учиться.\n\nГотов? Нажми ниже.',
     suggestions: [
       'How should I start preparing for the SAT?',
       'Explain SAT Reading strategies',
       'I have 2 months until my test. Make me a plan.',
       'What are the best free resources?',
     ],
-    suggestionsRu: [
+    disclaimer: 'AI can make mistakes. Verify important information.',
+    loadingHistory: 'Loading your conversation history...',
+  },
+  ru: {
+    title: 'AI Помощник SAT',
+    subtitle: 'Задай любой вопрос о SAT — стратегии, разбор задач, планы подготовки или рекомендации по ресурсам.',
+    placeholder: 'Спроси о стратегиях SAT, разборе задач, планах...',
+    send: '→',
+    welcome: 'Привет! 👋 Я твой AI помощник для SAT. Я могу:\n\n• **Объяснить концепты SAT** — спроси о любой теме\n• **Разобрать задачу** — пришли вопрос и я разберу его пошагово\n• **Составить план** — скажи дату экзамена, текущий и целевой балл\n• **Порекомендовать ресурсы** — я знаю всю нашу библиотеку\n\nЧем помочь?',
+    welcomePlan: 'Привет! 👋 Готов составить твой персональный план подготовки.\n\nЗадам несколько вопросов чтобы план реально подходил тебе — твоё расписание, слабые места, как тебе удобнее учиться.\n\nГотов? Нажми ниже.',
+    suggestions: [
       'С чего начать подготовку к SAT?',
       'Объясни стратегии для SAT Reading',
       'У меня 2 месяца до экзамена. Составь план.',
       'Какие лучшие бесплатные ресурсы?',
     ],
-    disclaimer: 'AI can make mistakes. Verify important information.',
-    disclaimerRu: 'AI может ошибаться. Проверяйте важную информацию.',
-    loadingHistory: 'Loading your conversation history...',
-    loadingHistoryRu: 'Загружаю историю переписки...',
-  }
+    disclaimer: 'AI может ошибаться. Проверяйте важную информацию.',
+    loadingHistory: 'Загружаю историю переписки...',
+  },
 };
 
 // How many past messages to load and send to AI (keeps context manageable)
@@ -47,7 +53,7 @@ const PLAN_UPDATE_RE = /\[\[PLAN_UPDATE\]\][\s\S]*?\[\[\/PLAN_UPDATE\]\]/g;
 const PLAN_UPDATE_PARTIAL_RE = /\[\[PLAN_UPDATE\]\][\s\S]*$/;
 
 function AIChatBuddy({ language, user, profile, onProfileUpdate, setCurrentPage, pendingMessage, onPendingMessageSent }) {
-  const t = text.en;
+  const t = language === 'ru' ? text.ru : text.en;
   const noPlan = !profile?.plan_created;
   const welcomeContent = noPlan ? t.welcomePlan : t.welcome;
   const welcomeMessage = { role: 'assistant', content: welcomeContent };
@@ -92,7 +98,10 @@ function AIChatBuddy({ language, user, profile, onProfileUpdate, setCurrentPage,
   const savePlanToDashboard = useCallback(async () => {
     setSavingPlan(true);
     try {
-      await generateAndSavePlan(latestProfileRef.current, user.id, planTasksRef.current, scheduledDaysRef.current);
+      await Promise.race([
+        generateAndSavePlan(latestProfileRef.current, user.id, planTasksRef.current, scheduledDaysRef.current),
+        new Promise((_, reject) => setTimeout(() => reject(new Error('Save timed out — please try again')), 30000)),
+      ]);
       if (onProfileUpdate) {
         const _d = new Date();
         const today = `${_d.getFullYear()}-${String(_d.getMonth()+1).padStart(2,'0')}-${String(_d.getDate()).padStart(2,'0')}`;
@@ -128,7 +137,8 @@ function AIChatBuddy({ language, user, profile, onProfileUpdate, setCurrentPage,
           setMessages([welcomeMessage, ...history]);
         }
         setHistoryLoading(false);
-      });
+      })
+      .catch(() => setHistoryLoading(false));
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.id]);
 
@@ -247,6 +257,7 @@ function AIChatBuddy({ language, user, profile, onProfileUpdate, setCurrentPage,
           if (data === '[DONE]') {
             isStreamingRef.current = false;
             setIsStreaming(false);
+            setIsLoading(false);
             const finalText = aiContent.replace(PLAN_UPDATE_RE, '').trim();
             if (finalText) saveMessage('assistant', finalText);
 
@@ -315,6 +326,12 @@ function AIChatBuddy({ language, user, profile, onProfileUpdate, setCurrentPage,
           }
         }
       }
+      // Stream closed — ensure loading state is reset if [DONE] was never received
+      if (isStreamingRef.current) {
+        isStreamingRef.current = false;
+        setIsStreaming(false);
+        setIsLoading(false);
+      }
     } catch (error) {
       isStreamingRef.current = false;
       setIsLoading(false);
@@ -340,8 +357,8 @@ function AIChatBuddy({ language, user, profile, onProfileUpdate, setCurrentPage,
   };
 
   const suggestions = noPlan
-    ? ["Let's build my study plan →"]
-    : (language === 'ru' ? t.suggestionsRu : t.suggestions);
+    ? [language === 'ru' ? 'Составить мой план подготовки →' : "Let's build my study plan →"]
+    : t.suggestions;
   const showSuggestions = messages.length <= 1;
 
   return (
@@ -396,7 +413,7 @@ function AIChatBuddy({ language, user, profile, onProfileUpdate, setCurrentPage,
             {historyLoading ? (
               <div className="chat-history-loading">
                 <div className="chat-typing"><span></span><span></span><span></span></div>
-                <p>{language === 'ru' ? t.loadingHistoryRu : t.loadingHistory}</p>
+                <p>{t.loadingHistory}</p>
               </div>
             ) : (
               <>
@@ -481,7 +498,7 @@ function AIChatBuddy({ language, user, profile, onProfileUpdate, setCurrentPage,
 
           <div className="chat-input-area">
             <p className="chat-disclaimer">
-              {language === 'ru' ? t.disclaimerRu : t.disclaimer}
+              {t.disclaimer}
             </p>
             <div className="chat-input-wrapper">
               <textarea
