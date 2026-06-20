@@ -20,7 +20,7 @@ const ALLOWED_ORIGINS = process.env.ALLOWED_ORIGINS
 app.use(cors({
   origin: (origin, callback) => {
     const isDev = process.env.NODE_ENV !== 'production';
-    if (!origin || (isDev && origin.startsWith('http://localhost')) || ALLOWED_ORIGINS.some(o => origin === o || (o.includes('*') && origin.includes(o.replace('*', ''))))) {
+    if (!origin || (isDev && origin.startsWith('http://localhost')) || ALLOWED_ORIGINS.includes(origin)) {
       callback(null, true);
     } else {
       callback(new Error('Not allowed by CORS'));
@@ -160,6 +160,59 @@ PAID:
 - sessions_per_week: integer — количество занятий в неделю (из ответа студента на вопрос д). Default 3.
 - scheduled_days: массив чисел [0-6] — дни недели для занятий, где 0=воскресенье, 1=понедельник, 2=вторник, 3=среда, 4=четверг, 5=пятница, 6=суббота. Выбирай оптимально: для 3x/week → [1,3,5] (пн/ср/пт), для 5x/week → [1,2,3,4,5], для 2x/week → [2,5] (вт/пт). ОБЯЗАТЕЛЬНО при plan_created=true.`;
 
+// ── Profile sanitization (prompt injection defence) ───────────────────────────
+const VALID_SECTIONS = new Set(['math', 'reading']);
+const VALID_TIMEFRAMES = new Set(['under-4-weeks', '1-2-months', '2-4-months', '4-6-months', '6-months-plus']);
+const VALID_HOURS = new Set(['less-than-1', '1-2', '1-3', '2-3', '3-5', '3-plus', '5-plus']);
+const VALID_SCORE_KEYS = new Set(['none', 'below-900', '900-1000', '1000-1100', '1100-1200', '1200-1300', '1300-1400', '1400-1500', '1500+']);
+
+function sanitizeStr(v, maxLen = 500) {
+  if (typeof v !== 'string') return undefined;
+  // Strip control chars (newlines, tabs, null bytes) to prevent prompt injection
+  return v.replace(/[\x00-\x1F\x7F]/g, ' ').trim().slice(0, maxLen);
+}
+
+function sanitizeProfile(raw) {
+  if (!raw || typeof raw !== 'object') return {};
+  const p = {};
+
+  // Enum fields — only accept known values
+  if (VALID_TIMEFRAMES.has(raw.exam_timeframe)) p.exam_timeframe = raw.exam_timeframe;
+  if (VALID_HOURS.has(raw.study_hours)) p.study_hours = raw.study_hours;
+  if (VALID_SCORE_KEYS.has(raw.current_score)) p.current_score = raw.current_score;
+
+  // Numeric fields — clamp to valid SAT range
+  const scoreActual = Number(raw.current_score_actual);
+  if (Number.isFinite(scoreActual) && scoreActual >= 400 && scoreActual <= 1600) {
+    p.current_score_actual = Math.round(scoreActual);
+  }
+  const targetScore = Number(raw.target_score);
+  if (Number.isFinite(targetScore) && targetScore >= 400 && targetScore <= 1600) {
+    p.target_score = Math.round(targetScore);
+  }
+  const streak = Number(raw.current_streak);
+  if (Number.isFinite(streak) && streak >= 0) p.current_streak = Math.floor(streak);
+
+  // Booleans
+  if (raw.plan_created === true) p.plan_created = true;
+
+  // Dates (simple format check)
+  if (typeof raw.plan_start_date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(raw.plan_start_date)) {
+    p.plan_start_date = raw.plan_start_date;
+  }
+
+  // Array of known enum values only
+  if (Array.isArray(raw.weak_sections)) {
+    p.weak_sections = raw.weak_sections.filter(s => VALID_SECTIONS.has(s));
+  }
+
+  // Free-text — strip control chars, cap length
+  const summary = sanitizeStr(raw.plan_summary, 500);
+  if (summary) p.plan_summary = summary;
+
+  return p;
+}
+
 // ── Student profile → readable context ───────────────────────────────────────
 const SCORE_LABELS = {
   'none': 'Not taken yet',
@@ -199,26 +252,25 @@ function formatStudentContext(profile, taskStats) {
     ? `Created\nPlan summary: ${profile.plan_summary ?? 'No summary saved'}`
     : 'Not yet created — student has not built a plan with you yet';
 
-  const startScore = profile.current_score_actual ?? 800;
-  const targetScore = profile.target_score ?? 1400;
+  const startScore = profile.current_score_actual ?? null;
+  const targetScore = profile.target_score ?? null;
 
   let progressBlock = '';
   if (taskStats && profile.plan_created) {
     const { total, completed, dayNum } = taskStats;
     const pct = total > 0 ? Math.round((completed / total) * 100) : 0;
-    const estimatedScore = total > 0
-      ? Math.round(startScore + (targetScore - startScore) * (completed / total))
-      : startScore;
+    const estimatedLine = (startScore !== null && targetScore !== null && total > 0)
+      ? `\nEstimated current score: ~${Math.round(startScore + (targetScore - startScore) * (completed / total))}`
+      : '';
     progressBlock = `
 Current day: Day ${dayNum} of the plan
-Tasks completed: ${completed} / ${total} (${pct}% of full plan)
-Estimated current score: ~${estimatedScore}
+Tasks completed: ${completed} / ${total} (${pct}% of full plan)${estimatedLine}
 Current streak: ${profile.current_streak ?? 0} days in a row`;
   }
 
   return `
 [STUDENT PROFILE]
-Target score: ${targetScore}
+Target score: ${targetScore ?? 'Unknown'}
 Current score: ${profile.current_score_actual ?? SCORE_LABELS[profile.current_score] ?? 'Unknown'}
 Time until exam: ${TIMEFRAME_LABELS[profile.exam_timeframe] ?? profile.exam_timeframe ?? 'Unknown'}
 Focus areas: ${sections}
@@ -260,8 +312,9 @@ const authGuard = process.env.REQUIRE_AUTH === 'true'
 console.log(`[auth] ${process.env.REQUIRE_AUTH === 'true' ? 'enabled' : 'WARN: disabled — set REQUIRE_AUTH=true to enable'}`);
 
 app.post('/api/chat', authGuard, rateLimiter, concurrencyGuard(queue), async (req, res) => {
-  const { messages, profile, taskStats } = req.body;
-  console.log('[profile received]', JSON.stringify(profile));
+  const { messages, taskStats } = req.body;
+  const profile = sanitizeProfile(req.body.profile);
+  console.log('[chat] userId:', req.user?.id);
 
   if (!validateMessages(messages)) {
     return res.status(400).json({ error: 'Invalid messages format' });

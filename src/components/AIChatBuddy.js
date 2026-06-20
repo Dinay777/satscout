@@ -43,6 +43,8 @@ function formatMessage(text) {
 }
 
 const PLAN_UPDATE_RE = /\[\[PLAN_UPDATE\]\][\s\S]*?\[\[\/PLAN_UPDATE\]\]/g;
+// Strips incomplete [[PLAN_UPDATE]] blocks still streaming (no closing tag yet)
+const PLAN_UPDATE_PARTIAL_RE = /\[\[PLAN_UPDATE\]\][\s\S]*$/;
 
 function AIChatBuddy({ language, user, profile, onProfileUpdate, setCurrentPage, pendingMessage, onPendingMessageSent }) {
   const t = text.en;
@@ -69,7 +71,7 @@ function AIChatBuddy({ language, user, profile, onProfileUpdate, setCurrentPage,
   useEffect(() => {
     const handleVisibility = () => {
       if (document.visibilityState === 'visible' && isStreamingRef.current && aiContentRef.current) {
-        const displayText = aiContentRef.current.replace(PLAN_UPDATE_RE, '').trim();
+        const displayText = aiContentRef.current.replace(PLAN_UPDATE_RE, '').replace(PLAN_UPDATE_PARTIAL_RE, '').trim();
         setMessages(prev => {
           const last = prev[prev.length - 1];
           if (last?.role === 'assistant') {
@@ -293,7 +295,7 @@ function AIChatBuddy({ language, user, profile, onProfileUpdate, setCurrentPage,
             if (parsed.text) {
               aiContent += parsed.text;
               aiContentRef.current = aiContent;
-              const displayText = aiContent.replace(PLAN_UPDATE_RE, '').trim();
+              const displayText = aiContent.replace(PLAN_UPDATE_RE, '').replace(PLAN_UPDATE_PARTIAL_RE, '').trim();
 
               if (!firstTextReceived) {
                 // First text: switch from loading dots to streaming bubble in one render
