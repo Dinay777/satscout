@@ -244,7 +244,7 @@ function Dashboard({ user, profile, language, setCurrentPage, onProfileUpdate, o
               className="dashboard-empty__btn"
               onClick={() => onStartPlan ? onStartPlan() : setCurrentPage('ai-buddy')}
             >
-              {ru ? 'Начать планирование →' : 'Start Planning →'}
+              {ru ? 'Сгенерировать мой план →' : 'Generate my plan →'}
             </button>
           </div>
         </div>
