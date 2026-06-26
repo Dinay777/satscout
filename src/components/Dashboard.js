@@ -71,7 +71,12 @@ function Dashboard({ user, profile, language, setCurrentPage, onProfileUpdate, o
   const greeting  = getGreeting(language);
   const emailName = user?.email?.split('@')[0] ?? '';
   const totalDays = getDaysUntilTest(profile.exam_timeframe, profile.created_at);
-  const startScore  = profile.current_score_actual ?? getCurrentScoreNum(profile.current_score) ?? 800;
+  // Real-score model: baseline is the onboarding starting point; the bar only
+  // moves when the student logs an actual practice-test score (no fabricated
+  // climb from checking off tasks).
+  const baselineScore  = getCurrentScoreNum(profile.current_score) ?? profile.current_score_actual ?? 800;
+  const currentScore   = profile.current_score_actual ?? baselineScore;
+  const hasLoggedScore = profile.current_score_actual != null;
   const targetScore = profile.target_score ?? 1400;
   const week       = getWeekNumber(profile.created_at);
   const streak     = profile.current_streak ?? 0;
@@ -102,12 +107,10 @@ function Dashboard({ user, profile, language, setCurrentPage, onProfileUpdate, o
   const nextSessionName = getNextSessionDayName(scheduledDays, language);
   const optionalTask = (ru ? OPTIONAL_TASKS_RU : OPTIONAL_TASKS)[new Date().getDay() % OPTIONAL_TASKS.length];
 
-  const completionRate = allTasksStats.total > 0 ? allTasksStats.completed / allTasksStats.total : 0;
-  const estimatedScore = Math.round(startScore + (targetScore - startScore) * completionRate);
-  const rawScorePct = targetScore > startScore
-    ? ((estimatedScore - startScore) / (targetScore - startScore)) * 100
+  const rawScorePct = targetScore > baselineScore
+    ? ((currentScore - baselineScore) / (targetScore - baselineScore)) * 100
     : 0;
-  const scorePct = profile.plan_created ? Math.max(2.5, rawScorePct) : 0;
+  const scorePct = Math.max(0, Math.min(100, rawScorePct));
 
   // Week calendar (Mon-Sun with session info)
   const weekCal = hasSchedule && profile.plan_start_date
@@ -206,6 +209,26 @@ function Dashboard({ user, profile, language, setCurrentPage, onProfileUpdate, o
     setTasks(prev => prev.map(t => t.id === taskId ? { ...t, completed: false } : t));
   }, []);
 
+  // ── Log a real practice-test score ────────────────────────────────────────
+  const logScore = async () => {
+    const raw = window.prompt(ru
+      ? 'Балл последнего пробного теста (400–1600):'
+      : 'Your latest practice test score (400–1600):');
+    if (raw == null) return;
+    const n = Math.round(Number(raw));
+    if (!Number.isFinite(n) || n < 400 || n > 1600) {
+      window.alert(ru ? 'Введи число от 400 до 1600.' : 'Please enter a number between 400 and 1600.');
+      return;
+    }
+    const { error } = await supabase.from('profiles')
+      .update({ current_score_actual: n }).eq('user_id', user.id);
+    if (error) {
+      window.alert(ru ? 'Не удалось сохранить балл.' : 'Could not save your score.');
+      return;
+    }
+    if (onProfileUpdate) onProfileUpdate({ ...profile, current_score_actual: n });
+  };
+
   // ── Rebuild plan ──────────────────────────────────────────────────────────
   const rebuildPlan = async () => {
     if (!window.confirm(ru ? 'Удалить текущий план и начать заново?' : 'Delete current plan and start over?')) return;
@@ -284,7 +307,7 @@ function Dashboard({ user, profile, language, setCurrentPage, onProfileUpdate, o
   const isViewingToday = activeDate === today;
   const shownTasks = isViewingToday ? tasks : (weekMap[activeSessionNum]?.tasks ?? []);
 
-  const scoreLevel = startScore < 1000 ? 'foundation' : startScore < 1200 ? 'intermediate' : 'advanced';
+  const scoreLevel = currentScore < 1000 ? 'foundation' : currentScore < 1200 ? 'intermediate' : 'advanced';
   const weakSpots = [
     ...(profile.weak_sections?.includes('math')
       ? MATH_TOPICS[scoreLevel].slice(0, 2).map(name => ({ name, section: 'Math' }))
@@ -321,11 +344,11 @@ function Dashboard({ user, profile, language, setCurrentPage, onProfileUpdate, o
         {/* ── Score progress ── */}
         <div className="dash-score-bar">
           <div className="dash-score-bar__estimated">
-            <span className="dash-score-bar__est-num">{estimatedScore}</span>
+            <span className="dash-score-bar__est-num">{currentScore}</span>
             <span className="dash-score-bar__est-label">
-              {completionRate === 0 && profile.plan_created
-                ? (ru ? 'План создан — ты уже начала! 🎉' : 'Plan created — you\'ve already started! 🎉')
-                : (ru ? 'Текущий прогноз' : 'Estimated Score')}
+              {hasLoggedScore
+                ? (ru ? 'Последний балл пробника' : 'Latest practice score')
+                : (ru ? 'Стартовый балл — залогируй пробник, чтобы видеть прогресс' : 'Starting score — log a practice test to track progress')}
             </span>
           </div>
           <div className="dash-score-bar__track">
@@ -333,7 +356,7 @@ function Dashboard({ user, profile, language, setCurrentPage, onProfileUpdate, o
           </div>
           <div className="dash-score-bar__endpoints">
             <div className="dash-score-bar__endpoint">
-              <span className="dash-score-bar__ep-num">{startScore}</span>
+              <span className="dash-score-bar__ep-num">{baselineScore}</span>
               <span className="dash-score-bar__ep-label">{ru ? 'Старт' : 'Starting Score'}</span>
             </div>
             <div className="dash-score-bar__endpoint dash-score-bar__endpoint--right">
@@ -341,9 +364,14 @@ function Dashboard({ user, profile, language, setCurrentPage, onProfileUpdate, o
               <span className="dash-score-bar__ep-label">{ru ? 'Цель' : 'Goal Score'}</span>
             </div>
           </div>
-          <button className="dash-progress-link" onClick={() => setCurrentPage('progress')}>
-            {ru ? 'Детальный прогресс →' : 'Detailed progress →'}
-          </button>
+          <div className="dash-score-bar__actions">
+            <button className="dash-log-score-btn" onClick={logScore}>
+              {ru ? '＋ Залогировать балл пробника' : '＋ Log practice score'}
+            </button>
+            <button className="dash-progress-link" onClick={() => setCurrentPage('progress')}>
+              {ru ? 'Детальный прогресс →' : 'Detailed progress →'}
+            </button>
+          </div>
         </div>
 
         {/* ── Today's Tasks ── */}

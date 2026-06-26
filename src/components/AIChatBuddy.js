@@ -98,7 +98,9 @@ function AIChatBuddy({ language, user, profile, onProfileUpdate, setCurrentPage,
   const [isStreaming, setIsStreaming] = useState(false);
   const [historyLoading, setHistoryLoading] = useState(!!user);
   const [planJustCreated, setPlanJustCreated] = useState(false);
+  const [planSaved, setPlanSaved] = useState(false);
   const [savingPlan, setSavingPlan] = useState(false);
+  const autoSaveAttempted = useRef(false); // ensures the auto-save fires once per plan
   const latestProfileRef = useRef(profile);
   const planTasksRef = useRef(null);
   const scheduledDaysRef = useRef(null);
@@ -129,7 +131,9 @@ function AIChatBuddy({ language, user, profile, onProfileUpdate, setCurrentPage,
   useEffect(() => { latestProfileRef.current = profile; }, [profile]);
 
   // ── Save plan to Dashboard ────────────────────────────────────────────────
-  const savePlanToDashboard = useCallback(async () => {
+  // Pass navigate=false to persist the plan silently (auto-save) without yanking
+  // the student out of the chat; navigate=true also jumps to the Dashboard.
+  const savePlanToDashboard = useCallback(async (navigate = true) => {
     setSavingPlan(true);
     try {
       await Promise.race([
@@ -146,13 +150,23 @@ function AIChatBuddy({ language, user, profile, onProfileUpdate, setCurrentPage,
           scheduled_days: scheduledDaysRef.current ?? latestProfileRef.current.scheduled_days,
         });
       }
-      setCurrentPage('dashboard');
+      setPlanSaved(true);
+      if (navigate) setCurrentPage('dashboard');
     } catch (e) {
       console.error('Plan save failed', e);
     } finally {
       setSavingPlan(false);
     }
   }, [user.id, onProfileUpdate, setCurrentPage]);
+
+  // Auto-save the plan as soon as the AI finishes building it, so it can never
+  // be lost in the chat. Fires once per plan (reset on rebuild).
+  useEffect(() => {
+    if (planJustCreated && !autoSaveAttempted.current && !savingPlan) {
+      autoSaveAttempted.current = true;
+      savePlanToDashboard(false);
+    }
+  }, [planJustCreated, savingPlan, savePlanToDashboard]);
 
   // ── Load history from Supabase on mount ───────────────────────────────────
   useEffect(() => {
@@ -503,26 +517,42 @@ function AIChatBuddy({ language, user, profile, onProfileUpdate, setCurrentPage,
                 {planJustCreated && (
                   <div className="chat-save-plan">
                     <div className="chat-save-plan__inner">
-                      <span className="chat-save-plan__icon">🎉</span>
+                      <span className="chat-save-plan__icon">{savingPlan ? '⏳' : '🎉'}</span>
                       <div>
                         <p className="chat-save-plan__title">
-                          {language === 'ru' ? 'Твой план готов!' : 'Your plan is ready!'}
+                          {savingPlan
+                            ? (language === 'ru' ? 'Сохраняю план...' : 'Saving your plan...')
+                            : planSaved
+                              ? (language === 'ru' ? 'План сохранён в Dashboard!' : 'Saved to your Dashboard!')
+                              : (language === 'ru' ? 'Твой план готов!' : 'Your plan is ready!')}
                         </p>
                         <p className="chat-save-plan__sub">
                           {language === 'ru'
-                            ? 'Сохрани его в Dashboard — там будут задачи на каждый день.'
-                            : "Save it to your Dashboard — you'll get daily tasks and progress tracking."}
+                            ? 'Задачи уже на дашборде. Можешь открыть его или перестроить план.'
+                            : "Your daily tasks are on the Dashboard. Open it, or rebuild the plan."}
                         </p>
                       </div>
-                      <button
-                        className="chat-save-plan__btn"
-                        onClick={savePlanToDashboard}
-                        disabled={savingPlan}
-                      >
-                        {savingPlan
-                          ? (language === 'ru' ? 'Сохраняю...' : 'Saving...')
-                          : (language === 'ru' ? 'Сохранить в Dashboard →' : 'Save to Dashboard →')}
-                      </button>
+                      <div className="chat-save-plan__actions">
+                        <button
+                          className="chat-save-plan__btn"
+                          onClick={() => planSaved ? setCurrentPage('dashboard') : savePlanToDashboard(true)}
+                          disabled={savingPlan}
+                        >
+                          {language === 'ru' ? 'Открыть Dashboard →' : 'Go to Dashboard →'}
+                        </button>
+                        <button
+                          className="chat-save-plan__btn chat-save-plan__btn--ghost"
+                          onClick={() => {
+                            setPlanJustCreated(false);
+                            setPlanSaved(false);
+                            autoSaveAttempted.current = false;
+                            sendMessage(language === 'ru' ? 'Давай перестроим план заново' : "Let's rebuild my plan from scratch");
+                          }}
+                          disabled={savingPlan}
+                        >
+                          {language === 'ru' ? 'Перестроить план' : 'Rebuild plan'}
+                        </button>
+                      </div>
                     </div>
                   </div>
                 )}

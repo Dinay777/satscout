@@ -23,7 +23,9 @@ app.use(cors({
     if (!origin || (isDev && origin.startsWith('http://localhost')) || ALLOWED_ORIGINS.includes(origin)) {
       callback(null, true);
     } else {
-      callback(new Error('Not allowed by CORS'));
+      // Disallowed origin: don't throw (that surfaces as a confusing 500).
+      // Returning false simply omits CORS headers, so the browser blocks it cleanly.
+      callback(null, false);
     }
   },
   methods: ['GET', 'POST'],

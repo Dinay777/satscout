@@ -5336,3 +5336,62 @@ button {
   border-radius: 50px;
   margin-left: 2px;
 }
+
+/* ── Tails fix: KaTeX mobile overflow + new action buttons ─────────────────── */
+/* Long formulas scroll horizontally inside the bubble instead of overflowing */
+.chat-message__text .katex-display {
+  overflow-x: auto;
+  overflow-y: hidden;
+  max-width: 100%;
+  padding-bottom: 2px;
+}
+.chat-message__text .katex { max-width: 100%; }
+
+/* Plan card: two stacked actions (Go to Dashboard + Rebuild) */
+.chat-save-plan__actions {
+  margin-left: auto;
+  display: flex;
+  gap: 8px;
+  flex-shrink: 0;
+}
+.chat-save-plan__actions .chat-save-plan__btn { margin-left: 0; }
+.chat-save-plan__btn--ghost {
+  background: transparent;
+  color: var(--blue);
+  border: 1px solid var(--blue);
+}
+.chat-save-plan__btn--ghost:hover:not(:disabled) {
+  background: rgba(59,130,246,0.08);
+  box-shadow: none;
+}
+
+/* Score bar: log-score button next to detailed-progress link */
+.dash-score-bar__actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-top: 14px;
+}
+.dash-log-score-btn {
+  background: var(--blue);
+  color: #fff;
+  border: none;
+  border-radius: 10px;
+  padding: 9px 16px;
+  font-size: 0.85rem;
+  font-weight: 700;
+  font-family: var(--font-body);
+  cursor: pointer;
+  transition: transform var(--transition), box-shadow var(--transition);
+}
+.dash-log-score-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 16px rgba(59,130,246,0.3);
+}
+
+@media (max-width: 560px) {
+  .chat-save-plan__actions { width: 100%; margin-left: 0; }
+  .chat-save-plan__actions .chat-save-plan__btn { flex: 1; text-align: center; }
+}
