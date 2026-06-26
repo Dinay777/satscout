@@ -1,4 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
+import katex from 'katex';
+import 'katex/dist/katex.min.css';
 import { supabase } from '../lib/supabase';
 import { generateAndSavePlan } from '../lib/planGenerator';
 
@@ -40,11 +42,43 @@ const text = {
 // How many past messages to load and send to AI (keeps context manageable)
 const HISTORY_LIMIT = 40;
 
+// Render a LaTeX expression to an HTML string. Falls back to the raw
+// expression if KaTeX can't parse it (e.g. malformed input).
+function renderMath(expr, displayMode) {
+  try {
+    return katex.renderToString(expr.trim(), {
+      displayMode,
+      throwOnError: false,
+      output: 'html',
+    });
+  } catch {
+    return expr;
+  }
+}
+
 function formatMessage(text) {
+  // Pull math out first so the markdown/newline passes below can't corrupt
+  // LaTeX. Only complete delimiter pairs are matched — a half-streamed
+  // "$$a^2 + b^2" with no closing "$$" is left untouched until it arrives.
+  const mathBlocks = [];
+  const stash = (html) => {
+    const token = `@@MATH${mathBlocks.length}@@`;
+    mathBlocks.push(html);
+    return token;
+  };
+
   let formatted = text;
+  formatted = formatted.replace(/\$\$([\s\S]+?)\$\$/g, (_, expr) => stash(renderMath(expr, true)));
+  formatted = formatted.replace(/\\\[([\s\S]+?)\\\]/g, (_, expr) => stash(renderMath(expr, true)));
+  formatted = formatted.replace(/\$(?!\$)([^\n$]+?)\$/g, (_, expr) => stash(renderMath(expr, false)));
+  formatted = formatted.replace(/\\\(([\s\S]+?)\\\)/g, (_, expr) => stash(renderMath(expr, false)));
+
   formatted = formatted.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
   formatted = formatted.replace(/^• /gm, '<span class="chat-bullet">•</span> ');
   formatted = formatted.replace(/\n/g, '<br/>');
+
+  // Re-insert rendered math (KaTeX output is self-contained HTML).
+  formatted = formatted.replace(/@@MATH(\d+)@@/g, (_, i) => mathBlocks[Number(i)]);
   return formatted;
 }
 
