@@ -5395,3 +5395,30 @@ button {
   .chat-save-plan__actions { width: 100%; margin-left: 0; }
   .chat-save-plan__actions .chat-save-plan__btn { flex: 1; text-align: center; }
 }
+
+/* Make "Detailed progress" a visible button, not a tiny text link */
+.dash-progress-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--navy);
+  color: #fff;
+  border: none;
+  border-radius: 10px;
+  padding: 9px 18px;
+  font-size: 0.9rem;
+  font-weight: 700;
+  font-family: var(--font-body);
+  cursor: pointer;
+  transition: transform var(--transition), box-shadow var(--transition), background var(--transition);
+}
+.dash-progress-link:hover {
+  transform: translateY(-1px);
+  background: var(--blue);
+  box-shadow: 0 4px 16px rgba(59,130,246,0.3);
+}
+@media (max-width: 560px) {
+  .dash-score-bar__actions { gap: 8px; }
+  .dash-score-bar__actions .dash-log-score-btn,
+  .dash-score-bar__actions .dash-progress-link { flex: 1; justify-content: center; text-align: center; }
+}
