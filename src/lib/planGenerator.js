@@ -27,6 +27,20 @@ function normalizeStudyHours(val) {
   return STUDY_HOURS_MAP[val] ?? val;
 }
 
+// Paid resources that must NOT appear in a default plan unless the student
+// confirmed they own them. Matched by resource_name against the task pools.
+const PAID_RESOURCE_NAMES = new Set([
+  'College Panda Math',
+  'College Panda Writing',
+  'Erica Meltzer Critical Reader',
+  'Erica Meltzer Grammar',
+  'UWorld SAT',
+  'PWN the SAT Math',
+  'Princeton Review SAT Premium',
+  'Albert.io SAT',
+  'Magoosh SAT',
+]);
+
 const MATH_TASKS = {
   foundation: [
     { title: 'Watch: Heart of Algebra overview', task_type: 'video', resource_name: 'Scalar Learning', resource_url: 'https://www.youtube.com/@ScalarLearning', duration_minutes: 20 },
@@ -143,19 +157,32 @@ export async function generateAndSavePlan(profile, userId, aiTasks = null, sched
   const allTasks = [];
 
   if (aiTasks?.length) {
-    // Build template: group by day field, use only days 1..sessionsPerWeek
-    const templateDays = [...new Set(aiTasks.map(t => t.day))].sort((a, b) => a - b);
-    const usedDays = templateDays.slice(0, sessionsPerWeek);
-    const tasksPerTemplateDay = {};
-    for (const d of usedDays) {
-      tasksPerTemplateDay[d] = aiTasks.filter(t => t.day === d);
+    // HYBRID: the AI returns a POOL of unique tasks, each tagged with a phase
+    // (foundation/core/testprep). We walk the plan session-by-session, and for
+    // each session pull the next unused tasks from that session's phase bucket,
+    // advancing a per-phase cursor. Consecutive weeks therefore differ — the old
+    // code repeated one identical week for the whole plan ((session-1)%len).
+    const PHASES = ['foundation', 'core', 'testprep'];
+    const byPhase = { foundation: [], core: [], testprep: [] };
+    for (const t of aiTasks) {
+      const ph = PHASES.includes(t.phase) ? t.phase : 'core';
+      byPhase[ph].push(t);
     }
-    const templateLength = usedDays.length || 1;
+    const cursor = { foundation: 0, core: 0, testprep: 0 };
+    let flatCursor = 0; // fallback when a phase bucket is empty (model ignored phases)
 
     for (let session = 1; session <= totalSessions; session++) {
-      const templateDay = usedDays[(session - 1) % templateLength];
-      const dayTaskTemplates = tasksPerTemplateDay[templateDay] ?? [];
-      for (const t of dayTaskTemplates) {
+      const phase = getPhase(session, totalSessions);
+      const pool = byPhase[phase].length ? byPhase[phase] : null;
+      for (let i = 0; i < tasksPerDay; i++) {
+        let t;
+        if (pool) {
+          t = pool[cursor[phase] % pool.length];
+          cursor[phase]++;
+        } else {
+          t = aiTasks[flatCursor % aiTasks.length];
+          flatCursor++;
+        }
         allTasks.push({
           user_id: userId,
           day_number: session,
@@ -169,6 +196,14 @@ export async function generateAndSavePlan(profile, userId, aiTasks = null, sched
       }
     }
   } else {
+    // Gate paid resources out of the default fallback plan: students only get
+    // paid books if they explicitly confirmed they own them (profile flag).
+    // We filter by resource name — the curated task data itself is untouched.
+    const allowPaid = profile.has_paid_resources === true;
+    const isPaid = (t) => PAID_RESOURCE_NAMES.has(t.resource_name);
+    const mathPool = (ph) => allowPaid ? MATH_TASKS[ph] : MATH_TASKS[ph].filter(t => !isPaid(t));
+    const readingPool = (ph) => allowPaid ? READING_TASKS[ph] : READING_TASKS[ph].filter(t => !isPaid(t));
+
     const idx = { math: { foundation: 0, core: 0, testprep: 0 }, reading: { foundation: 0, core: 0, testprep: 0 } };
 
     for (let session = 1; session <= totalSessions; session++) {
@@ -176,8 +211,8 @@ export async function generateAndSavePlan(profile, userId, aiTasks = null, sched
       const dayTasks = [];
 
       if (focusMath && focusReading) {
-        const mp = MATH_TASKS[phase];
-        const rp = READING_TASKS[phase];
+        const mp = mathPool(phase);
+        const rp = readingPool(phase);
         dayTasks.push(mp[idx.math[phase] % mp.length]);
         idx.math[phase]++;
         dayTasks.push(rp[idx.reading[phase] % rp.length]);
@@ -188,13 +223,13 @@ export async function generateAndSavePlan(profile, userId, aiTasks = null, sched
           dayTasks.push(extra);
         }
       } else if (focusMath) {
-        const pool = MATH_TASKS[phase];
+        const pool = mathPool(phase);
         for (let i = 0; i < tasksPerDay; i++) {
           dayTasks.push(pool[(idx.math[phase] + i) % pool.length]);
         }
         idx.math[phase] += tasksPerDay;
       } else {
-        const pool = READING_TASKS[phase];
+        const pool = readingPool(phase);
         for (let i = 0; i < tasksPerDay; i++) {
           dayTasks.push(pool[(idx.reading[phase] + i) % pool.length]);
         }
