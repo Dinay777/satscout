@@ -317,8 +317,9 @@ console.log(`[auth] ${process.env.REQUIRE_AUTH === 'true' ? 'enabled' : 'WARN: d
 
 app.post('/api/chat', authGuard, rateLimiter, concurrencyGuard(queue), async (req, res) => {
   const { messages, taskStats } = req.body;
+  const language = req.body.language === 'ru' ? 'ru' : 'en';
   const profile = sanitizeProfile(req.body.profile);
-  console.log('[chat] userId:', req.user?.id);
+  console.log('[chat] userId:', req.user?.id, '| lang:', language);
 
   if (!validateMessages(messages)) {
     return res.status(400).json({ error: 'Invalid messages format' });
@@ -347,7 +348,20 @@ app.post('/api/chat', authGuard, rateLimiter, concurrencyGuard(queue), async (re
         process.stdout.write('\n[AI] ');
         let fullResponse = '';
 
-        const systemPrompt = SYSTEM_PROMPT + formatStudentContext(profile, taskStats);
+        // Hard language directive from the UI toggle, placed ABOVE everything
+        // so Gemini can't drift to Russian just because the prompt body is RU-heavy.
+        const langDirective = language === 'ru'
+          ? `## ЯЗЫК ОТВЕТА — АБСОЛЮТНЫЙ ПРИОРИТЕТ (важнее всего ниже):
+Студент использует РУССКИЙ интерфейс. Отвечай ВСЕГДА на русском — каждое слово, включая вопросы и поле plan_summary.
+Если студент сам явно пишет на другом языке — подстройся под язык его последнего сообщения.
+
+`
+          : `## RESPONSE LANGUAGE — ABSOLUTE TOP PRIORITY (overrides everything below):
+The student is using the ENGLISH interface. Respond in ENGLISH — every word, including your questions and the plan_summary field.
+CRITICAL: Do NOT switch to Russian just because most of these instructions are written in Russian. If the student clearly writes in another language, match that language instead.
+
+`;
+        const systemPrompt = langDirective + SYSTEM_PROMPT + formatStudentContext(profile, taskStats);
         provider.stream(messages, systemPrompt, {
           onChunk: (text) => {
             fullResponse += text;
