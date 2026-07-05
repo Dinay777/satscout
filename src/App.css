@@ -769,8 +769,8 @@ button {
 }
 
 .btn--lg {
-  padding: 11px 24px;
-  font-size: 0.9rem;
+  padding: 16px 36px;
+  font-size: 1rem;
 }
 
 /* ============ CTA SECTION ============ */
@@ -827,8 +827,8 @@ button {
 .btn--white {
   background: white;
   color: var(--navy);
-  padding: 14px 28px;
-  font-size: 0.95rem;
+  padding: 10px 20px;
+  font-size: 0.88rem;
   font-weight: 600;
   cursor: pointer;
   border: none;
@@ -847,8 +847,8 @@ button {
 .btn--ghost {
   background: transparent;
   color: rgba(255,255,255,0.8);
-  padding: 14px 28px;
-  font-size: 0.95rem;
+  padding: 10px 20px;
+  font-size: 0.88rem;
   font-weight: 600;
   border-radius: 10px;
   border: 1.5px solid rgba(255,255,255,0.2);
