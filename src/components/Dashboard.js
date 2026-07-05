@@ -260,8 +260,8 @@ function Dashboard({ user, profile, language, setCurrentPage, onProfileUpdate, o
             </h2>
             <p className="dashboard-empty__desc">
               {ru
-                ? 'Задам тебе пару вопросов чтобы создать план который реально впишется в твою жизнь'
-                : "I'll ask you a few questions to create a plan that actually fits your life"}
+                ? 'Задам несколько вопросов и составлю план под твоё расписание'
+                : "A few quick questions and I'll put together a plan around your schedule"}
             </p>
             <button
               className="dashboard-empty__btn"
@@ -280,10 +280,10 @@ function Dashboard({ user, profile, language, setCurrentPage, onProfileUpdate, o
   const allDone = tasks.length > 0 && completedToday === tasks.length;
 
   const statusText = allDone
-    ? (ru ? '🎉 На сегодня всё выполнено!' : "🎉 All done for today!")
+    ? (ru ? 'Готово на сегодня. Хорошая работа.' : "Done for today. Nice work.")
     : displayStreak > 2
-      ? (ru ? `🔥 ${displayStreak} ${hasSchedule ? 'сессий' : 'дней'} подряд — продолжай!` : `🔥 ${displayStreak} ${hasSchedule ? 'session' : 'day'} streak — keep it up!`)
-      : (ru ? 'Ты в пути 💪' : "You're on track 💪");
+      ? (ru ? `🔥 ${displayStreak} ${hasSchedule ? 'сессий' : 'дней'} подряд` : `🔥 ${displayStreak} ${hasSchedule ? 'session' : 'day'} streak`)
+      : (ru ? 'Ты в процессе.' : "You're in it.");
 
   // Week strip data
   const weekMap = {};

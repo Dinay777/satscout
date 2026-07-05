@@ -42,7 +42,7 @@ const text = {
         iconKey: 'book',
         iconColor: 'blue',
         title: 'Curated Resource Library',
-        description: 'Hand-picked books, videos, apps, and practice tests — organized by section, difficulty, and type. No fluff, only what actually works.',
+        description: "Books, videos, apps, and practice tests, sorted by section and difficulty so you can actually find what you need.",
         tag: 'Free',
         tagVariant: 'green'
       },
@@ -80,7 +80,7 @@ const text = {
         iconKey: 'book',
         iconColor: 'blue',
         title: 'Библиотека ресурсов',
-        description: 'Отобранные книги, видео, приложения и тесты — по разделам, сложности и типу. Только то, что реально работает.',
+        description: 'Книги, видео, приложения и тесты — разложены по разделам и сложности, чтобы ты сразу нашёл нужное.',
         tag: 'Бесплатно',
         tagVariant: 'green'
       },

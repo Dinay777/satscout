@@ -261,11 +261,11 @@ button {
 /* ============ HERO ============ */
 .hero {
   position: relative;
-  min-height: 90vh;
+  min-height: 82vh;
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 120px 2rem 80px;
+  padding: 92px 2rem 60px;
   background: linear-gradient(180deg, var(--gray-50) 0%, var(--white) 100%);
   overflow: hidden;
 }
@@ -429,13 +429,13 @@ button {
 .section-subtitle {
   font-size: 1.05rem;
   color: var(--gray-500);
-  margin-bottom: 48px;
+  margin-bottom: 32px;
   max-width: 500px;
 }
 
 /* ============ FEATURES (colorful update) ============ */
 .features {
-  padding: 100px 2rem;
+  padding: 68px 2rem;
   background: var(--white);
 }
 
@@ -460,7 +460,7 @@ button {
   font-weight: 700;
   color: var(--navy);
   letter-spacing: -0.02em;
-  margin-bottom: 48px;
+  margin-bottom: 32px;
 }
 
 .features__grid {
@@ -541,7 +541,7 @@ button {
 
 /* ============ HOW IT WORKS ============ */
 .how-it-works {
-  padding: 100px 2rem;
+  padding: 68px 2rem;
   background: var(--gray-50);
 }
 
@@ -550,7 +550,7 @@ button {
   margin: 0 auto;
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 80px;
+  gap: 56px;
   align-items: start;
 }
 
@@ -660,7 +660,7 @@ button {
 
 /* ============ RESOURCE PREVIEW ============ */
 .resource-preview {
-  padding: 100px 2rem;
+  padding: 68px 2rem;
   background: var(--white);
 }
 
@@ -673,7 +673,7 @@ button {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 16px;
-  margin-bottom: 48px;
+  margin-bottom: 32px;
 }
 
 .resource-card {
@@ -938,7 +938,7 @@ button {
 
 /* ============ RESOURCE LIBRARY PAGE ============ */
 .library {
-  padding: 120px 2rem 80px;
+  padding: 96px 2rem 60px;
   min-height: 100vh;
   background: var(--gray-50);
 }
@@ -1974,7 +1974,7 @@ button {
 /* ── Final CTA ── */
 .sp-cta {
   background: linear-gradient(135deg, var(--navy) 0%, var(--navy-light) 100%);
-  padding: 100px 2rem;
+  padding: 72px 2rem;
   text-align: center;
   position: relative;
   overflow: hidden;
@@ -2017,7 +2017,7 @@ button {
 
 .about-hero {
   background: linear-gradient(180deg, var(--gray-50) 0%, var(--white) 100%);
-  padding: 80px 2rem 60px;
+  padding: 88px 2rem 44px;
   text-align: center;
 }
 
@@ -2037,7 +2037,7 @@ button {
 }
 
 .about-story {
-  padding: 80px 2rem;
+  padding: 56px 2rem;
   background: var(--white);
 }
 
@@ -2046,7 +2046,7 @@ button {
   margin: 0 auto;
   display: grid;
   grid-template-columns: 1fr 340px;
-  gap: 64px;
+  gap: 44px;
   align-items: start;
 }
 
@@ -2080,7 +2080,7 @@ button {
 }
 
 .about-values {
-  padding: 80px 2rem;
+  padding: 56px 2rem;
   background: var(--gray-50);
 }
 
@@ -2136,7 +2136,7 @@ button {
 }
 
 .about-contact {
-  padding: 100px 2rem;
+  padding: 68px 2rem;
   background: var(--white);
   text-align: center;
 }
@@ -2723,7 +2723,7 @@ button {
 
 /* ============ SOCIAL PROOF / TESTIMONIALS ============ */
 .social-proof {
-  padding: 100px 2rem;
+  padding: 68px 2rem;
   background: var(--gray-50);
 }
 

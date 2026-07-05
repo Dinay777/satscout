@@ -6,7 +6,7 @@ const steps = {
     {
       id: 'target_score',
       question: "What's your target SAT score?",
-      subtitle: "Dream big — we'll map every step to get you there.",
+      subtitle: "Pick the score you're aiming for. We'll work back from there.",
       type: 'single',
       options: [
         { label: '900–1000',  value: 950  },
@@ -21,7 +21,7 @@ const steps = {
     {
       id: 'exam_timeframe',
       question: 'When is your test?',
-      subtitle: "We'll build a plan that fits your timeline.",
+      subtitle: "This sets your pace — a plan you can actually keep up with.",
       type: 'single',
       options: [
         { label: 'Under 4 weeks', value: 'under-4-weeks', sub: '⚡ crunch time' },
@@ -34,7 +34,7 @@ const steps = {
     {
       id: 'current_score',
       question: "What's your current score?",
-      subtitle: "Don't worry if you haven't taken a practice test yet.",
+      subtitle: "Haven't taken a practice test yet? Just pick the closest.",
       type: 'single',
       options: [
         { label: "Haven't taken one yet", value: 'none', sub: "that's totally fine" },
@@ -62,7 +62,7 @@ const steps = {
     {
       id: 'study_hours',
       question: 'How much can you study each week?',
-      subtitle: 'Honest beats optimistic — consistency is what matters.',
+      subtitle: "Be honest here — a plan you'll actually follow beats a perfect one you won't.",
       type: 'single',
       options: [
         { label: '1–3 hours',  value: '1-3',  sub: 'light' },
@@ -76,7 +76,7 @@ const steps = {
     {
       id: 'target_score',
       question: 'Какой балл SAT ты хочешь получить?',
-      subtitle: 'Мечтай по-крупному — мы составим план для каждого шага.',
+      subtitle: 'Выбери балл, к которому идёшь. От него и построим план.',
       type: 'single',
       options: [
         { label: '900–1000',  value: 950  },
@@ -91,7 +91,7 @@ const steps = {
     {
       id: 'exam_timeframe',
       question: 'Когда у тебя экзамен?',
-      subtitle: 'Мы подстроим план под твои сроки.',
+      subtitle: 'От этого зависит темп — план, за которым реально успеешь.',
       type: 'single',
       options: [
         { label: 'Меньше 4 недель', value: 'under-4-weeks', sub: '⚡ срочно' },
@@ -104,7 +104,7 @@ const steps = {
     {
       id: 'current_score',
       question: 'Какой у тебя текущий балл?',
-      subtitle: 'Не переживай, если ещё не сдавал(а) пробный тест.',
+      subtitle: 'Ещё не сдавал пробный тест? Просто выбери ближайшее.',
       type: 'single',
       options: [
         { label: 'Ещё не сдавал(а)',  value: 'none',       sub: 'всё нормально' },
@@ -132,7 +132,7 @@ const steps = {
     {
       id: 'study_hours',
       question: 'Сколько часов в неделю ты готов(а) учиться?',
-      subtitle: 'Честный ответ лучше оптимистичного — важна стабильность.',
+      subtitle: 'Ответь честно — план, который ты реально выполнишь, лучше идеального на бумаге.',
       type: 'single',
       options: [
         { label: '1–3 часа',   value: '1-3',  sub: 'легко' },
