@@ -133,35 +133,129 @@ const READING_TASKS = {
   ],
 };
 
-function getPhase(dayNumber, totalDays) {
-  const pct = dayNumber / totalDays;
+// The intense foundation→core→testprep block is capped at this many weeks and
+// always sits in the RUN-UP to the exam (peak intensity right before test day).
+const MAX_STRUCTURED_WEEKS = 14;
+// Fallback horizon when we have neither a real exam date nor a usable timeframe
+// bucket — never stall plan generation on a missing date (Decision B).
+const DEFAULT_HORIZON_WEEKS = 8;
+const MS_PER_DAY = 24 * 60 * 60 * 1000;
+
+// How many weeks until the exam, counted from TODAY (the plan-generation date).
+// Prefers a REAL exam date if the profile ever stores one — today only the coarse
+// `exam_timeframe` bucket is written (Onboarding + [[PLAN_UPDATE]]), so the bucket
+// path is what actually runs; the date path is here so a future date field works
+// with no further change. Always >= 1 week (past/today/tomorrow clamp to a 1-week
+// crunch plan).
+function computeWeeksUntilExam(profile) {
+  const dateStr = profile.exam_date || profile.test_date || null;
+  if (typeof dateStr === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+    const [y, m, d] = dateStr.split('-').map(Number);
+    const exam = new Date(y, m - 1, d);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const days = Math.ceil((exam.getTime() - today.getTime()) / MS_PER_DAY);
+    return Math.max(1, Math.ceil(days / 7));
+  }
+  // No real date → keep the existing coarse horizon so existing data doesn't break.
+  const bucketDays = TIMEFRAME_DAYS[profile.exam_timeframe];
+  if (bucketDays) return Math.max(1, Math.ceil(bucketDays / 7));
+  // Neither a date nor a usable bucket → default horizon (Decision B).
+  return DEFAULT_HORIZON_WEEKS;
+}
+
+// Phase for a session WITHIN the structured block (1-based index over the block's
+// total sessions). Foundation early, testprep right before the exam. In crunch
+// mode (<= 3 weeks to exam) foundation is skipped and the weight shifts to
+// testprep — no time for basics.
+function getStructuredPhase(sessionIndex, totalStructured, crunch) {
+  const pct = totalStructured > 0 ? sessionIndex / totalStructured : 1;
+  if (crunch) return pct < 0.34 ? 'core' : 'testprep';
   if (pct < 0.35) return 'foundation';
   if (pct < 0.75) return 'core';
   return 'testprep';
 }
 
+// Graceful, never-repeating review task. Used in two places: (1) the LIGHT
+// MAINTENANCE weeks that pad a far-out exam, and (2) when the AI task pool is
+// smaller than the structured block has slots. Numbered so no two are ever
+// identical, review / timed-practice styled — exactly what a student does in the
+// run-up to the exam. FREE resources only. `ru` matches the student's language.
+// `kind` ('review' | 'practice') forces the variant; otherwise parity decides.
+function makeFillerTask(n, ru, kind) {
+  const isReview = kind ? kind === 'review' : n % 2 === 0;
+  if (ru) {
+    return isReview
+      ? { title: `Разбор ошибок #${n}: повтори слабые темы по журналу ошибок`, task_type: 'read', resource_name: 'Your notes', resource_url: null, duration_minutes: 25 }
+      : { title: `Пробный тест #${n}: секция на время + разбор каждой ошибки`, task_type: 'practice', resource_name: 'Bluebook App', resource_url: 'https://bluebook.collegeboard.org', duration_minutes: 35 };
+  }
+  return isReview
+    ? { title: `Error review #${n}: revisit your weakest topics from your error log`, task_type: 'read', resource_name: 'Your notes', resource_url: null, duration_minutes: 25 }
+    : { title: `Practice Test #${n}: full timed section + review every mistake`, task_type: 'practice', resource_name: 'Bluebook App', resource_url: 'https://bluebook.collegeboard.org', duration_minutes: 35 };
+}
+
 export async function generateAndSavePlan(profile, userId, aiTasks = null, scheduledDays = null) {
-  const totalDays = TIMEFRAME_DAYS[profile.exam_timeframe] ?? 60;
   const tasksPerDay = TASKS_PER_DAY[normalizeStudyHours(profile.study_hours)] ?? 2;
   const sections = profile.weak_sections ?? ['math', 'reading'];
   const focusMath = sections.includes('math');
   const focusReading = sections.includes('reading');
 
+  // ── Timeline anchoring (Phase 2) ───────────────────────────────────────────
+  // Anchor the plan to the exam. The intense foundation→core→testprep block is
+  // capped at MAX_STRUCTURED_WEEKS and placed in the RUN-UP to the exam (peak
+  // intensity right before test day). If the exam is further out, the surplus
+  // EARLIER weeks become a LIGHT MAINTENANCE phase (~1–2 unique review tasks per
+  // week) so the student ticks over without burning out months in advance, then
+  // ramps into the structured block. Crunch (<= 3 weeks) skips foundation.
+  const weeksUntilExam = computeWeeksUntilExam(profile);
+  const hasSchedule = !!scheduledDays?.length;
+  const structuredWeeks = Math.min(weeksUntilExam, MAX_STRUCTURED_WEEKS);
+  // Maintenance padding runs ONLY in schedule mode. There, the padded weeks'
+  // empty days render as "Rest Day" and the session-based streak survives them.
+  // In no-schedule (dense 7-day) mode the legacy day-based streak would break on
+  // those empty maintenance days (student loses streak through no fault), so we
+  // skip padding entirely and just run the structured block from today.
+  const maintenanceWeeks = hasSchedule ? Math.max(0, weeksUntilExam - structuredWeeks) : 0;
+  const crunch = weeksUntilExam <= 3;
   const sessionsPerWeek = scheduledDays?.length || 7;
-  const totalSessions = scheduledDays?.length
-    ? Math.ceil(totalDays / 7 * sessionsPerWeek)
-    : totalDays;
+  const maintenanceSessions = maintenanceWeeks * sessionsPerWeek;
+  const structuredSessions = structuredWeeks * sessionsPerWeek;
+  const totalSessions = maintenanceSessions + structuredSessions;
 
   await supabase.from('user_tasks').delete().eq('user_id', userId);
 
+  // Language for generated (non-AI) strings: from the AI pool when present, else
+  // the stored profile language, else sniff the saved plan summary; default English.
+  const ru = aiTasks?.length
+    ? aiTasks.some(t => /[А-Яа-яЁё]/.test(t?.title || ''))
+    : (profile.language === 'ru' || /[А-Яа-яЁё]/.test(profile.plan_summary || ''));
+
   const allTasks = [];
+  let fillerN = 0;
+  const push = (session, t) => allTasks.push({
+    user_id: userId,
+    day_number: session,
+    task_title: t.title,
+    task_type: t.task_type,
+    resource_name: t.resource_name,
+    resource_url: t.resource_url ?? null,
+    duration_minutes: t.duration_minutes ?? 30,
+    completed: false,
+  });
+
+  // ── Structured-block task source: AI pool (no-repeat) or curated fallback ───
+  // `structuredTasks(phase, idx)` yields the tasksPerDay task objects for ONE
+  // structured session. Maintenance + pool-exhaustion filler share `fillerN`, so
+  // every generated review task carries a unique number — zero repeats anywhere.
+  let structuredTasks;
 
   if (aiTasks?.length) {
-    // HYBRID: the AI returns a POOL of unique tasks, each tagged with a phase
-    // (foundation/core/testprep). We walk the plan session-by-session, and for
-    // each session pull the next unused tasks from that session's phase bucket,
-    // advancing a per-phase cursor. Consecutive weeks therefore differ — the old
-    // code repeated one identical week for the whole plan ((session-1)%len).
+    // HYBRID distributor — DISTINCT, progressively harder tasks, NO repeats. The
+    // AI hands us a POOL of unique phase-tagged tasks; we draw the NEXT UNUSED
+    // task from the session's phase bucket. Cursors only move forward (no modulo
+    // wrap), so no week repeats. When a bucket runs dry we borrow the next unused
+    // task from any other bucket (foundation→core→testprep order) so no unique
+    // task is wasted; only once EVERY real task is used do we emit numbered filler.
     const PHASES = ['foundation', 'core', 'testprep'];
     const byPhase = { foundation: [], core: [], testprep: [] };
     for (const t of aiTasks) {
@@ -169,47 +263,33 @@ export async function generateAndSavePlan(profile, userId, aiTasks = null, sched
       byPhase[ph].push(t);
     }
     const cursor = { foundation: 0, core: 0, testprep: 0 };
-    let flatCursor = 0; // fallback when a phase bucket is empty (model ignored phases)
-
-    for (let session = 1; session <= totalSessions; session++) {
-      const phase = getPhase(session, totalSessions);
-      const pool = byPhase[phase].length ? byPhase[phase] : null;
-      for (let i = 0; i < tasksPerDay; i++) {
-        let t;
-        if (pool) {
-          t = pool[cursor[phase] % pool.length];
-          cursor[phase]++;
-        } else {
-          t = aiTasks[flatCursor % aiTasks.length];
-          flatCursor++;
-        }
-        allTasks.push({
-          user_id: userId,
-          day_number: session,
-          task_title: t.title,
-          task_type: t.task_type,
-          resource_name: t.resource_name,
-          resource_url: t.resource_url ?? null,
-          duration_minutes: t.duration_minutes ?? 30,
-          completed: false,
-        });
+    const takeFromPhase = (ph) =>
+      cursor[ph] < byPhase[ph].length ? byPhase[ph][cursor[ph]++] : null;
+    const takeAny = () => {
+      for (const ph of PHASES) {
+        const t = takeFromPhase(ph);
+        if (t) return t;
       }
-    }
+      return null;
+    };
+    structuredTasks = (phase) => {
+      const out = [];
+      for (let i = 0; i < tasksPerDay; i++) {
+        out.push(takeFromPhase(phase) ?? takeAny() ?? makeFillerTask(++fillerN, ru));
+      }
+      return out;
+    };
   } else {
-    // Gate paid resources out of the default fallback plan: students only get
-    // paid books if they explicitly confirmed they own them (profile flag).
-    // We filter by resource name — the curated task data itself is untouched.
+    // Curated fallback (AI returned no tasks). Gate paid resources unless the
+    // student confirmed they own them — filter by resource name; data untouched.
     const allowPaid = profile.has_paid_resources === true;
     const isPaid = (t) => PAID_RESOURCE_NAMES.has(t.resource_name);
     const mathPool = (ph) => allowPaid ? MATH_TASKS[ph] : MATH_TASKS[ph].filter(t => !isPaid(t));
     const readingPool = (ph) => allowPaid ? READING_TASKS[ph] : READING_TASKS[ph].filter(t => !isPaid(t));
-
     const idx = { math: { foundation: 0, core: 0, testprep: 0 }, reading: { foundation: 0, core: 0, testprep: 0 } };
 
-    for (let session = 1; session <= totalSessions; session++) {
-      const phase = getPhase(session, totalSessions);
+    structuredTasks = (phase, sIdx) => {
       const dayTasks = [];
-
       if (focusMath && focusReading) {
         const mp = mathPool(phase);
         const rp = readingPool(phase);
@@ -218,36 +298,37 @@ export async function generateAndSavePlan(profile, userId, aiTasks = null, sched
         dayTasks.push(rp[idx.reading[phase] % rp.length]);
         idx.reading[phase]++;
         if (tasksPerDay >= 3) {
-          const extra = session % 2 === 0 ? mp[idx.math[phase] % mp.length] : rp[idx.reading[phase] % rp.length];
-          if (session % 2 === 0) idx.math[phase]++; else idx.reading[phase]++;
-          dayTasks.push(extra);
+          const useMath = sIdx % 2 === 0;
+          dayTasks.push(useMath ? mp[idx.math[phase] % mp.length] : rp[idx.reading[phase] % rp.length]);
+          if (useMath) idx.math[phase]++; else idx.reading[phase]++;
         }
       } else if (focusMath) {
         const pool = mathPool(phase);
-        for (let i = 0; i < tasksPerDay; i++) {
-          dayTasks.push(pool[(idx.math[phase] + i) % pool.length]);
-        }
+        for (let i = 0; i < tasksPerDay; i++) dayTasks.push(pool[(idx.math[phase] + i) % pool.length]);
         idx.math[phase] += tasksPerDay;
       } else {
         const pool = readingPool(phase);
-        for (let i = 0; i < tasksPerDay; i++) {
-          dayTasks.push(pool[(idx.reading[phase] + i) % pool.length]);
-        }
+        for (let i = 0; i < tasksPerDay; i++) dayTasks.push(pool[(idx.reading[phase] + i) % pool.length]);
         idx.reading[phase] += tasksPerDay;
       }
+      return dayTasks;
+    };
+  }
 
-      for (const task of dayTasks) {
-        allTasks.push({
-          user_id: userId,
-          day_number: session,
-          task_title: task.title,
-          task_type: task.task_type,
-          resource_name: task.resource_name,
-          resource_url: task.resource_url,
-          duration_minutes: task.duration_minutes,
-          completed: false,
-        });
-      }
+  // ── Emit the whole horizon: maintenance weeks first, structured block last ──
+  for (let session = 1; session <= totalSessions; session++) {
+    const week = Math.floor((session - 1) / sessionsPerWeek);
+    const sessionInWeek = (session - 1) % sessionsPerWeek;
+
+    if (week < maintenanceWeeks) {
+      // LIGHT MAINTENANCE: ~1–2 unique tasks/week (error review + one timed
+      // practice); the other sessions are rest days (Dashboard shows "Rest Day").
+      if (sessionInWeek === 0) push(session, makeFillerTask(++fillerN, ru, 'review'));
+      else if (sessionInWeek === 1) push(session, makeFillerTask(++fillerN, ru, 'practice'));
+    } else {
+      const sIdx = session - maintenanceSessions; // 1-based within the structured block
+      const phase = getStructuredPhase(sIdx, structuredSessions, crunch);
+      for (const t of structuredTasks(phase, sIdx)) push(session, t);
     }
   }
 
