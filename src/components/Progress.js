@@ -116,7 +116,7 @@ function Progress({ user, profile, language, setCurrentPage }) {
             <h2 className="progress-card__title">{ru ? 'Прогноз балла' : 'Score Forecast'}</h2>
             <div className="progress-score-chips">
               <span className="chip chip--start">{ru ? 'Старт' : 'Start'}: {startScore}</span>
-              <span className="chip chip--now">{ru ? 'Сейчас' : 'Now'}: ~{estimatedScore}</span>
+              <span className="chip chip--now">{ru ? 'Прогноз при 100%' : 'Projected at 100%'}: ~{estimatedScore}</span>
               <span className="chip chip--target">{ru ? 'Цель' : 'Target'}: {targetScore}</span>
             </div>
           </div>

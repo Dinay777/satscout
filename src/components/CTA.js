@@ -3,13 +3,13 @@ import React from 'react';
 const text = {
   en: {
     title: 'Ready to start your SAT journey?',
-    subtitle: 'Join hundreds of students already using SATScout to prep smarter, not harder.',
+    subtitle: 'Prep smarter, not harder — free, no credit card, no $200 course.',
     cta1: 'Explore Resources',
     cta2: 'Talk to AI Buddy',
   },
   ru: {
     title: 'Готов начать подготовку к SAT?',
-    subtitle: 'Присоединяйся к сотням студентов, которые уже используют SATScout для умной подготовки.',
+    subtitle: 'Готовься умнее, а не тяжелее — бесплатно, без карты и курсов за 200$.',
     cta1: 'Смотреть ресурсы',
     cta2: 'Спросить AI',
   }

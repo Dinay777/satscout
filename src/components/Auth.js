@@ -61,9 +61,15 @@ function Auth({ language, onAuth }) {
 
     try {
       if (mode === 'register') {
-        const { error } = await supabase.auth.signUp({ email, password, options: { emailRedirectTo: window.location.origin } });
+        const { data, error } = await supabase.auth.signUp({ email, password, options: { emailRedirectTo: window.location.origin } });
         if (error) throw error;
-        setSuccess(email);
+        // If email confirmation is disabled, signUp returns a live session — log them
+        // straight in instead of stranding them on a "check your email" screen.
+        if (data?.session && data?.user) {
+          onAuth(data.user);
+        } else {
+          setSuccess(email);
+        }
       } else {
         const { data, error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;

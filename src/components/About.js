@@ -36,7 +36,7 @@ const text = {
       {
         iconKey: 'target',
         title: 'Quality over quantity',
-        description: '25 excellent resources beat 200 mediocre ones every time. Every resource in our library was chosen because it genuinely works.',
+        description: '34 excellent resources beat 200 mediocre ones every time. Every resource in our library was chosen because it genuinely works.',
       },
       {
         iconKey: 'globe',
@@ -68,7 +68,7 @@ const text = {
       {
         iconKey: 'target',
         title: 'Качество важнее количества',
-        description: '25 отличных ресурсов всегда лучше 200 посредственных. Каждый ресурс в библиотеке выбран потому, что он реально работает.',
+        description: '34 отличных ресурса всегда лучше 200 посредственных. Каждый ресурс в библиотеке выбран потому, что он реально работает.',
       },
       {
         iconKey: 'globe',

@@ -315,12 +315,12 @@ app.get('/api/health', (req, res) => {
   });
 });
 
-// Auth is opt-in: only enforced when REQUIRE_AUTH === 'true' (default off).
+// Auth is secure-by-default: enforced unless REQUIRE_AUTH is explicitly set to 'false'.
+// This fails closed — an unset env var protects /api/chat rather than exposing it.
 // Evaluated once at startup so Railway env vars take effect on next deploy/restart.
-const authGuard = process.env.REQUIRE_AUTH === 'true'
-  ? requireAuth
-  : (req, res, next) => next();
-console.log(`[auth] ${process.env.REQUIRE_AUTH === 'true' ? 'enabled' : 'WARN: disabled — set REQUIRE_AUTH=true to enable'}`);
+const authDisabled = process.env.REQUIRE_AUTH === 'false';
+const authGuard = authDisabled ? (req, res, next) => next() : requireAuth;
+console.log(`[auth] ${authDisabled ? 'WARN: DISABLED — REQUIRE_AUTH=false; /api/chat is open' : 'enabled'}`);
 
 app.post('/api/chat', authGuard, rateLimiter, concurrencyGuard(queue), async (req, res) => {
   const { messages, taskStats } = req.body;

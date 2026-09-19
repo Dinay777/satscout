@@ -250,6 +250,12 @@ function AIChatBuddy({ language, user, profile, onProfileUpdate, setCurrentPage,
       }
     }
 
+    // Guard against a backend that accepts the connection but never streams:
+    // abort if no response has started within 45s so the loading dots can't hang forever.
+    const controller = new AbortController();
+    let didTimeout = false;
+    let responseTimeout = setTimeout(() => { didTimeout = true; controller.abort(); }, 45000);
+
     try {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session?.access_token) {
@@ -269,6 +275,7 @@ function AIChatBuddy({ language, user, profile, onProfileUpdate, setCurrentPage,
           'Authorization': `Bearer ${session.access_token}`,
         },
         body: JSON.stringify({ messages: apiMessages, language, profile, taskStats }),
+        signal: controller.signal,
       });
 
       if (response.status === 401) {
@@ -281,6 +288,9 @@ function AIChatBuddy({ language, user, profile, onProfileUpdate, setCurrentPage,
       }
 
       if (!response.ok) throw new Error(`Server error ${response.status}`);
+
+      // Response is streaming — cancel the connect-timeout guard.
+      clearTimeout(responseTimeout);
 
       const reader = response.body.getReader();
       const decoder = new TextDecoder();
@@ -381,12 +391,17 @@ function AIChatBuddy({ language, user, profile, onProfileUpdate, setCurrentPage,
         setIsLoading(false);
       }
     } catch (error) {
+      clearTimeout(responseTimeout);
       isStreamingRef.current = false;
       setIsLoading(false);
       setIsStreaming(false);
-      const errorMsg = language === 'ru'
-        ? 'Извини, что-то пошло не так. Попробуй снова.'
-        : 'Sorry, something went wrong. Please try again.';
+      const errorMsg = didTimeout
+        ? (language === 'ru'
+            ? 'Сервер не отвечает. Проверь соединение и попробуй снова.'
+            : 'The server is taking too long to respond. Please check your connection and try again.')
+        : (language === 'ru'
+            ? 'Извини, что-то пошло не так. Попробуй снова.'
+            : 'Sorry, something went wrong. Please try again.');
       setMessages(prev => {
         const last = prev[prev.length - 1];
         if (last?.role === 'assistant' && last?.content === '') {
