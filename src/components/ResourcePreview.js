@@ -4,8 +4,8 @@ const text = {
   en: {
     label: 'Sneak peek',
     title: 'What\'s inside the library',
-    subtitle: "24 free resources in the full library. Here are three we'd start with.",
-    cta: 'See all 24 resources, all free →',
+    subtitle: "34 free resources in the full library. Here are three we'd start with.",
+    cta: 'See all 34 resources, all free →',
     resources: [
       { title: 'Khan Academy SAT Prep', type: 'Website', section: 'All Sections', difficulty: 'All Levels', price: 'Free', rating: '⭐ 4.9', color: 'blue', description: 'Official College Board partner. Personalized practice with thousands of questions and video lessons.' },
       { title: 'The Official Digital SAT Study Guide', type: 'Book', section: 'All Sections', difficulty: 'All Levels', price: '$26', rating: '⭐ 4.7', color: 'orange', description: 'Straight from College Board. 4 full practice tests with detailed explanations.' },
@@ -15,8 +15,8 @@ const text = {
   ru: {
     label: 'Заглянем внутрь',
     title: 'Что в библиотеке',
-    subtitle: '24 бесплатных ресурса в библиотеке. Вот три, с которых стоит начать.',
-    cta: 'Смотреть все 24 ресурса, бесплатно →',
+    subtitle: '34 бесплатных ресурса в библиотеке. Вот три, с которых стоит начать.',
+    cta: 'Смотреть все 34 ресурса, бесплатно →',
     resources: [
       { title: 'Khan Academy SAT Prep', type: 'Сайт', section: 'Все разделы', difficulty: 'Все уровни', price: 'Бесплатно', rating: '⭐ 4.9', color: 'blue', description: 'Официальный партнёр College Board. Персональная практика с тысячами задач и видео.' },
       { title: 'The Official Digital SAT Study Guide', type: 'Книга', section: 'Все разделы', difficulty: 'Все уровни', price: '$26', rating: '⭐ 4.7', color: 'orange', description: 'От College Board. 4 полных практических теста с подробными объяснениями.' },
