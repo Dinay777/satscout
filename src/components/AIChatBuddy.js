@@ -3,6 +3,7 @@ import katex from 'katex';
 import 'katex/dist/katex.min.css';
 import { supabase } from '../lib/supabase';
 import { generateAndSavePlan } from '../lib/planGenerator';
+import { track } from '../lib/analytics';
 
 const text = {
   en: {
@@ -151,6 +152,7 @@ function AIChatBuddy({ language, user, profile, onProfileUpdate, setCurrentPage,
         });
       }
       setPlanSaved(true);
+      track('plan_generated');
       if (navigate) setCurrentPage('dashboard');
     } catch (e) {
       console.error('Plan save failed', e);

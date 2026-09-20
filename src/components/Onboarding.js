@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { supabase } from '../lib/supabase';
+import { track } from '../lib/analytics';
 
 const steps = {
   en: [
@@ -210,6 +211,7 @@ function Onboarding({ user, language, onComplete }) {
         ),
       ]);
       if (err) { setError(err.message); setSaving(false); return; }
+      track('onboarding_complete', { study_hours: finalAnswers.study_hours });
       onComplete(data);
     } catch (e) {
       setError(e.message);

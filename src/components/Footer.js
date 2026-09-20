@@ -7,6 +7,8 @@ const text = {
     aiBuddy: 'AI Study Buddy',
     programs: 'Summer Programs',
     about: 'About',
+    privacy: 'Privacy',
+    terms: 'Terms',
     copyright: '© 2026 SATScout. All rights reserved.',
     madeWith: 'Made with ♥ in Houston, TX'
   },
@@ -16,6 +18,8 @@ const text = {
     aiBuddy: 'AI Помощник',
     programs: 'Летние школы',
     about: 'О нас',
+    privacy: 'Конфиденциальность',
+    terms: 'Условия',
     copyright: '© 2026 SATScout. Все права защищены.',
     madeWith: 'Сделано с ♥ в Хьюстоне, TX'
   }
@@ -39,6 +43,8 @@ function Footer({ language, setCurrentPage }) {
           <button onClick={() => setCurrentPage('resources')}>{t.resources}</button>
           <button onClick={() => setCurrentPage('ai-buddy')}>{t.aiBuddy}</button>
           <button onClick={() => setCurrentPage('about')}>{t.about}</button>
+          <button onClick={() => setCurrentPage('privacy')}>{t.privacy}</button>
+          <button onClick={() => setCurrentPage('terms')}>{t.terms}</button>
         </div>
       </div>
       

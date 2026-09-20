@@ -14,6 +14,7 @@ import {
   DAY_SHORT_RU,
   localToday,
 } from '../lib/studyPlan';
+import { track } from '../lib/analytics';
 
 const TYPE_META = {
   video:    { icon: '🎬', label: 'Video',    color: 'blue'   },
@@ -156,6 +157,7 @@ function Dashboard({ user, profile, language, setCurrentPage, onProfileUpdate, o
 
     const updatedTasks = tasksRef.current.map(t => t.id === taskId ? { ...t, completed: true } : t);
     setTasks(updatedTasks);
+    track('task_completed');
     setConfetti(true);
     setTimeout(() => setConfetti(false), 1800);
 
@@ -226,6 +228,7 @@ function Dashboard({ user, profile, language, setCurrentPage, onProfileUpdate, o
       window.alert(ru ? 'Не удалось сохранить балл.' : 'Could not save your score.');
       return;
     }
+    track('score_logged', { score: n });
     if (onProfileUpdate) onProfileUpdate({ ...profile, current_score_actual: n });
   };
 

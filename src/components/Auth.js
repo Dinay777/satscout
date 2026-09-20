@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { supabase } from '../lib/supabase';
+import { track } from '../lib/analytics';
 
 const text = {
   en: {
@@ -63,6 +64,7 @@ function Auth({ language, onAuth }) {
       if (mode === 'register') {
         const { data, error } = await supabase.auth.signUp({ email, password, options: { emailRedirectTo: window.location.origin } });
         if (error) throw error;
+        track('signup');
         // If email confirmation is disabled, signUp returns a live session — log them
         // straight in instead of stranding them on a "check your email" screen.
         if (data?.session && data?.user) {

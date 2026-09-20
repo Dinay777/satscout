@@ -19,6 +19,9 @@ import Onboarding from './components/Onboarding';
 import Dashboard from './components/Dashboard';
 import Progress from './components/Progress';
 import Footer from './components/Footer';
+import Privacy from './components/Privacy';
+import Terms from './components/Terms';
+import { identify, resetAnalytics } from './lib/analytics';
 
 function App() {
   const [currentPage, setCurrentPage] = useState('home');
@@ -42,6 +45,11 @@ function App() {
 
     return () => subscription.unsubscribe();
   }, []);
+
+  // ── Tie analytics events to the (anonymous UUID) user, reset on logout ──
+  useEffect(() => {
+    if (user) identify(user.id);
+  }, [user]);
 
   // ── Fetch profile whenever user changes ──
   useEffect(() => {
@@ -78,6 +86,7 @@ function App() {
 
   const handleSignOut = async () => {
     await supabase.auth.signOut();
+    resetAnalytics();
     setProfile(null);
     setCurrentPage('home');
   };
@@ -196,6 +205,14 @@ function App() {
 
       {currentPage === 'about' && (
         <About language={language} />
+      )}
+
+      {currentPage === 'privacy' && (
+        <Privacy language={language} />
+      )}
+
+      {currentPage === 'terms' && (
+        <Terms language={language} />
       )}
 
       {currentPage !== 'ai-buddy' && (
