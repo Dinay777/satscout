@@ -13,7 +13,7 @@ const text = {
     sections: ['Reading', 'Writing', 'Math'],
     types: ['Book', 'Website', 'Video Course', 'App', 'Tool', 'Practice Test', 'Community'],
     difficulties: ['Beginner', 'Intermediate', 'Advanced', 'All Levels'],
-    prices: ['Free', 'Paid', 'Free + Paid'],
+    prices: ['Free', 'Freemium', 'Paid'],
     recommended: '★ Top Pick',
     viewResource: 'Open Resource →',
     findInLibrary: 'Find in Library',
@@ -32,7 +32,7 @@ const text = {
     sections: ['Reading', 'Writing', 'Math'],
     types: ['Книга', 'Сайт', 'Видеокурс', 'Приложение', 'Инструмент', 'Тесты', 'Сообщество'],
     difficulties: ['Начинающий', 'Средний', 'Продвинутый', 'Все уровни'],
-    prices: ['Бесплатно', 'Платно', 'Бесплатно + Платно'],
+    prices: ['Бесплатно', 'Условно-бесплатно', 'Платно'],
     recommended: '★ Рекомендуем',
     viewResource: 'Открыть →',
     findInLibrary: 'Найти в библиотеке',
@@ -184,7 +184,7 @@ function ResourceLibrary({ language, profile }) {
                 className={`filter-btn ${priceFilter === 'All' ? 'filter-btn--active' : ''}`}
                 onClick={() => setPriceFilter('All')}
               >{t.all}</button>
-              {['Free', 'Paid', 'Free + Paid'].map((p, i) => (
+              {['Free', 'Freemium', 'Paid'].map((p, i) => (
                 <button 
                   key={i}
                   className={`filter-btn ${priceFilter === p ? 'filter-btn--active' : ''}`}
