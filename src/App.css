@@ -775,7 +775,7 @@ button {
 
 /* ============ CTA SECTION ============ */
 .cta-section {
-  padding: 40px 2rem;
+  padding: 32px 2rem;
   background: var(--navy);
   position: relative;
   overflow: hidden;
@@ -804,18 +804,18 @@ button {
 
 .cta-section__title {
   font-family: var(--font-display);
-  font-size: 2.1rem;
+  font-size: 1.7rem;
   font-weight: 700;
   color: white;
   letter-spacing: -0.02em;
-  margin-bottom: 12px;
+  margin-bottom: 10px;
 }
 
 .cta-section__subtitle {
-  font-size: 1.05rem;
+  font-size: 0.98rem;
   color: rgba(255,255,255,0.6);
-  margin-bottom: 24px;
-  line-height: 1.6;
+  margin-bottom: 20px;
+  line-height: 1.55;
 }
 
 .cta-section__buttons {
@@ -2347,11 +2347,11 @@ button {
   }
 
   .cta-section {
-    padding: 36px 1.5rem;
+    padding: 28px 1.5rem;
   }
 
   .cta-section__title {
-    font-size: 1.8rem;
+    font-size: 1.45rem;
   }
 
   .cta-section__buttons {
