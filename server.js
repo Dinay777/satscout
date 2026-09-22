@@ -108,18 +108,15 @@ FREE:
 - Bluebook App | Math, R&W | https://bluebook.collegeboard.org | официальный симулятор Digital SAT
 - Bluebook Question Bank | Math, R&W | https://bluebook.collegeboard.org | бесплатная тематическая практика
 - PrepScholar Blog | Math, R&W | https://www.prepscholar.com/sat/s/blog | стратегии и форматы вопросов
-- SAT Math Ninja YouTube | Math | https://www.youtube.com/@SATMathNinja | начинающие в Math
-- Mark's SAT Prep YouTube | R&W | https://www.youtube.com/@MarksSATPrep | R&W логика вопросов
-- Dena Dickson YouTube | R&W | https://www.youtube.com/@DenaDickson | грамматика, Craft and Structure
+- The Organic Chemistry Tutor YouTube | Math | https://www.youtube.com/@TheOrganicChemistryTutor | начинающие в Math, база
 - SAT Quantum YouTube | Math | https://www.youtube.com/@SATQuantum | паттерны и ловушки Math
-- SupertutorTV YouTube | Math, R&W | https://www.youtube.com/@SupertutorTV | стратегии, тайм-менеджмент
-- Ivy Global Practice Tests | Math, R&W | https://ivyglobal.com/study/digital-sat | дополнительные тесты
+- SupertutorTV YouTube | Math, R&W | https://www.youtube.com/@supertutortv | стратегии, тайм-менеджмент, R&W
 - r/Sat Reddit | General | https://www.reddit.com/r/Sat/ | опыт реальных студентов
 - CrackSAT | Math, R&W | https://www.cracksat.net | дополнительная практика
 - Varsity Tutors SAT | Math, R&W | https://www.varsitytutors.com/sat-practice-tests | тематическая практика
 - Desmos Calculator | Math | https://www.desmos.com/calculator | встроенный калькулятор SAT
-- Vocabulary.com | R&W | https://www.vocabulary.com | SAT vocabulary, адаптивно
-- Quizlet SAT Vocabulary | R&W | https://quizlet.com/subject/sat-vocabulary/ | флэшкарты слов
+- Vocabulary.com | R&W | https://www.vocabulary.com | SAT vocabulary (freemium: поиск слов бесплатно, тренажёр платно)
+- Quizlet SAT Vocabulary | R&W | https://quizlet.com/subject/sat-vocabulary/ | флэшкарты слов (freemium: карточки бесплатно, Learn/Test платно)
 - Project Gutenberg | R&W | https://www.gutenberg.org | классика для вокабуляра
 - Standard Ebooks | R&W | https://standardebooks.org | красиво отформатированная классика
 - LibriVox | R&W | https://librivox.org | аудиокниги классики
