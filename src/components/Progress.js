@@ -4,7 +4,7 @@ import {
   Tooltip, ReferenceLine, ResponsiveContainer, Area, AreaChart,
 } from 'recharts';
 import { supabase } from '../lib/supabase';
-import { getCurrentScoreNum, getDaysUntilTest, parseLocalDate } from '../lib/studyPlan';
+import { getCurrentScoreNum, getDaysUntilTest, parseLocalDate, getLastSessionDate, getSessionNumForDate } from '../lib/studyPlan';
 
 function Progress({ user, profile, language, setCurrentPage }) {
   const [tasks, setTasks]       = useState([]);
@@ -12,11 +12,21 @@ function Progress({ user, profile, language, setCurrentPage }) {
 
   const ru = language === 'ru';
 
-  const startScore  = profile.current_score_actual ?? getCurrentScoreNum(profile.current_score) ?? 800;
+  // startScore = the onboarding BASELINE (not the latest logged score), so the
+  // forecast is drawn from where the student began, matching the Dashboard.
+  const startScore  = getCurrentScoreNum(profile.current_score) ?? 800;
   const targetScore = profile.target_score ?? 1400;
+  const realScore   = profile.current_score_actual ?? null; // last logged practice-test score
+  const hasLoggedScore = realScore != null;
   const daysLeft    = getDaysUntilTest(profile.exam_timeframe, profile.created_at);
   const streak      = profile.current_streak ?? 0;
   const longestStreak = profile.longest_streak ?? 0;
+
+  // A plan "week" = one cycle of scheduled sessions (or 7 calendar days with no
+  // schedule). day_number is a SESSION index in schedule mode, so grouping by 7
+  // would be wrong — group by weekSize instead.
+  const scheduledDays = profile.scheduled_days;
+  const weekSize = scheduledDays?.length || 7;
 
   useEffect(() => {
     supabase
@@ -63,15 +73,23 @@ function Progress({ user, profile, language, setCurrentPage }) {
     .filter(t => t.completed)
     .reduce((sum, t) => sum + (t.duration_minutes || 30), 0) / 60;
 
-  // Build weekly chart data
-  const planStartDate = profile.plan_start_date ? parseLocalDate(profile.plan_start_date) : new Date();
-  const weeklyData = buildWeeklyData(tasks, planStartDate, startScore, targetScore);
+  // Build weekly chart data (grouped by plan week = weekSize sessions)
+  const weeklyData = buildWeeklyData(tasks, startScore, targetScore, weekSize);
 
-  // Current week stats
-  const today = new Date(); today.setHours(0, 0, 0, 0);
-  const dayNum = Math.max(1, Math.floor((today - planStartDate) / 86400000) + 1);
-  const weekStart = dayNum - ((dayNum - 1) % 7);
-  const weekEnd   = weekStart + 6;
+  // Current plan week — derived from the current SESSION number, not calendar
+  // days, so it lines up with how day_number is stored.
+  let currentSession;
+  if (scheduledDays?.length) {
+    const lastSess = getLastSessionDate(profile.plan_start_date, scheduledDays);
+    currentSession = lastSess ? (getSessionNumForDate(lastSess, profile.plan_start_date, scheduledDays) || 1) : 1;
+  } else {
+    const start = profile.plan_start_date ? parseLocalDate(profile.plan_start_date) : new Date();
+    const today = new Date(); today.setHours(0, 0, 0, 0);
+    currentSession = Math.max(1, Math.floor((today - start) / 86400000) + 1);
+  }
+  const currentWeek = Math.floor((currentSession - 1) / weekSize) + 1;
+  const weekStart = (currentWeek - 1) * weekSize + 1;
+  const weekEnd   = currentWeek * weekSize;
   const thisWeekTasks     = tasks.filter(t => t.day_number >= weekStart && t.day_number <= weekEnd);
   const thisWeekCompleted = thisWeekTasks.filter(t => t.completed).length;
   const thisWeekHours     = thisWeekTasks
@@ -116,7 +134,9 @@ function Progress({ user, profile, language, setCurrentPage }) {
             <h2 className="progress-card__title">{ru ? 'Прогноз балла' : 'Score Forecast'}</h2>
             <div className="progress-score-chips">
               <span className="chip chip--start">{ru ? 'Старт' : 'Start'}: {startScore}</span>
-              <span className="chip chip--now">{ru ? 'Прогноз при 100%' : 'Projected at 100%'}: ~{estimatedScore}</span>
+              {hasLoggedScore
+                ? <span className="chip chip--now">{ru ? 'Твой балл' : 'Your score'}: {realScore}</span>
+                : <span className="chip chip--now">{ru ? 'При текущем темпе' : 'At current pace'}: ~{estimatedScore}</span>}
               <span className="chip chip--target">{ru ? 'Цель' : 'Target'}: {targetScore}</span>
             </div>
           </div>
@@ -148,6 +168,9 @@ function Progress({ user, profile, language, setCurrentPage }) {
                 formatter={(val) => [`${val}`, ru ? 'Прогноз' : 'Estimate']}
               />
               <ReferenceLine y={targetScore} stroke="#10b981" strokeDasharray="4 3" strokeWidth={1.5} label={{ value: ru ? 'Цель' : 'Target', fill: '#10b981', fontSize: 11 }} />
+              {hasLoggedScore && (
+                <ReferenceLine y={realScore} stroke="#0ea5e9" strokeDasharray="2 2" strokeWidth={1.5} label={{ value: ru ? 'Твой балл' : 'Your score', fill: '#0ea5e9', fontSize: 11 }} />
+              )}
               <Area
                 type="monotone"
                 dataKey="score"
@@ -221,19 +244,22 @@ function Progress({ user, profile, language, setCurrentPage }) {
   );
 }
 
-function buildWeeklyData(tasks, planStartDate, startScore, targetScore) {
-  if (!tasks.length) return [{ label: 'Week 1', score: startScore }];
+// A plan week = `weekSize` sessions (day_number is a session index in schedule
+// mode, a calendar day with no schedule). Grouping by weekSize keeps chart weeks
+// aligned with real calendar weeks either way.
+function buildWeeklyData(tasks, startScore, targetScore, weekSize) {
+  if (!tasks.length) return [{ label: 'Start', score: startScore }];
 
   const maxDay = Math.max(...tasks.map(t => t.day_number));
-  const totalWeeks = Math.ceil(maxDay / 7);
+  const totalWeeks = Math.ceil(maxDay / weekSize);
   const totalTasks = tasks.length;
 
   const data = [{ label: 'Start', score: startScore }];
 
   let cumulativeCompleted = 0;
   for (let w = 1; w <= Math.min(totalWeeks, 20); w++) {
-    const weekStart = (w - 1) * 7 + 1;
-    const weekEnd   = w * 7;
+    const weekStart = (w - 1) * weekSize + 1;
+    const weekEnd   = w * weekSize;
     const weekCompleted = tasks.filter(t => t.day_number >= weekStart && t.day_number <= weekEnd && t.completed).length;
     cumulativeCompleted += weekCompleted;
     const rate  = cumulativeCompleted / totalTasks;
