@@ -4387,6 +4387,69 @@ button {
 
 .dash-rebuild-btn:hover { color: var(--gray-600); }
 
+/* ── Upgraded-plan nudge ────────────────────────────────── */
+.dash-nudge {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin: 4px 0 20px;
+  padding: 12px 16px;
+  background: linear-gradient(135deg, rgba(59,130,246,0.08), rgba(6,182,212,0.08));
+  border: 1px solid rgba(59,130,246,0.2);
+  border-radius: 12px;
+}
+
+.dash-nudge__text {
+  margin: 0;
+  font-size: 0.9rem;
+  color: var(--gray-600);
+  line-height: 1.4;
+  flex: 1 1 240px;
+}
+
+.dash-nudge__icon { margin-right: 6px; }
+
+.dash-nudge__actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.dash-nudge__btn {
+  background: linear-gradient(135deg, var(--blue), var(--teal));
+  color: white;
+  border: none;
+  border-radius: 8px;
+  padding: 8px 16px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  font-family: var(--font-body);
+  cursor: pointer;
+  transition: transform var(--transition), box-shadow var(--transition);
+}
+
+.dash-nudge__btn:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 14px rgba(59,130,246,0.3);
+}
+
+.dash-nudge__btn:disabled { opacity: 0.6; cursor: default; }
+
+.dash-nudge__dismiss {
+  background: none;
+  border: none;
+  color: var(--gray-400);
+  font-size: 0.82rem;
+  font-family: var(--font-body);
+  cursor: pointer;
+  transition: color var(--transition);
+}
+
+.dash-nudge__dismiss:hover { color: var(--gray-600); }
+
 /* ── Rest Day ───────────────────────────────────────────── */
 .dash-rest-day {
   background: var(--gray-50);

@@ -15,6 +15,11 @@ import {
   localToday,
 } from '../lib/studyPlan';
 import { track } from '../lib/analytics';
+import { generateAndSavePlan } from '../lib/planGenerator';
+
+// One-time nudge inviting existing users to regenerate onto the upgraded plan
+// engine (no-repeat tasks, no dead links). Dismissal is stored per-device.
+const PLAN_NUDGE_KEY = 'satscout_plan_v2_nudge';
 
 const TYPE_META = {
   video:    { icon: '🎬', label: 'Video',    color: 'blue'   },
@@ -65,6 +70,10 @@ function Dashboard({ user, profile, language, setCurrentPage, onProfileUpdate, o
   const [tasksLoading, setTasksLoading] = useState(true);
   const [confetti, setConfetti]     = useState(false);
   const [rebuilding, setRebuilding] = useState(false);
+  const [regenerating, setRegenerating] = useState(false);
+  const [nudgeDismissed, setNudgeDismissed] = useState(() => {
+    try { return localStorage.getItem(PLAN_NUDGE_KEY) === '1'; } catch { return false; }
+  });
   const [selectedDay, setSelectedDay] = useState(null);
   const tasksRef = useRef([]);
   useEffect(() => { tasksRef.current = tasks; }, [tasks]);
@@ -251,6 +260,34 @@ function Dashboard({ user, profile, language, setCurrentPage, onProfileUpdate, o
     }
   };
 
+  // ── Regenerate in place (upgraded engine, no re-chat) ─────────────────────
+  // Re-runs the fixed generator against the EXISTING profile: keeps the student's
+  // schedule, target and exam date, streak and logged score — only the task list
+  // is rebuilt (no repeats, no dead links). Completion checkmarks reset because
+  // the task set changes. plan_start_date resets to today (fresh run to the exam).
+  const dismissNudge = () => {
+    try { localStorage.setItem(PLAN_NUDGE_KEY, '1'); } catch (e) { /* ignore */ }
+    setNudgeDismissed(true);
+  };
+  const regeneratePlan = async () => {
+    if (!window.confirm(ru
+      ? 'Пересобрать план на обновлённом движке? Задачи станут разнообразнее, без повторов и битых ссылок. Отметки о выполнении сбросятся; твой streak и балл останутся.'
+      : 'Regenerate your plan on the upgraded engine? Tasks become more varied with no repeats or dead links. Your checkmarks reset; your streak and score stay.')) return;
+    setRegenerating(true);
+    try {
+      await generateAndSavePlan(profile, user.id, null, profile.scheduled_days ?? null);
+      track('plan_regenerated');
+      dismissNudge();
+      setSelectedDay(null);
+      // Bumping plan_start_date re-triggers the task fetch effect with fresh data.
+      if (onProfileUpdate) onProfileUpdate({ ...profile, plan_created: true, plan_start_date: localToday() });
+    } catch (e) {
+      window.alert(ru ? 'Не удалось пересобрать план.' : 'Could not regenerate the plan.');
+    } finally {
+      setRegenerating(false);
+    }
+  };
+
   // ── Empty state ───────────────────────────────────────────────────────────
   if (!profile.plan_created) {
     return (
@@ -343,6 +380,26 @@ function Dashboard({ user, profile, language, setCurrentPage, onProfileUpdate, o
             <span className="dash-streak-badge__label">{hasSchedule ? (ru ? 'сессий' : 'sessions') : (ru ? 'дней' : 'days')}</span>
           </div>
         </div>
+
+        {/* ── Upgraded-plan nudge (existing users) ── */}
+        {!nudgeDismissed && (
+          <div className="dash-nudge">
+            <p className="dash-nudge__text">
+              <span className="dash-nudge__icon">✨</span>
+              {ru
+                ? 'Мы улучшили планы — задачи разнообразнее, без повторов и битых ссылок. Пересобрать твой?'
+                : 'We upgraded study plans — more varied tasks, no repeats, no dead links. Regenerate yours?'}
+            </p>
+            <div className="dash-nudge__actions">
+              <button className="dash-nudge__btn" onClick={regeneratePlan} disabled={regenerating}>
+                {regenerating ? (ru ? 'Собираю…' : 'Regenerating…') : (ru ? 'Пересобрать' : 'Regenerate')}
+              </button>
+              <button className="dash-nudge__dismiss" onClick={dismissNudge} disabled={regenerating}>
+                {ru ? 'Позже' : 'Later'}
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* ── Score progress ── */}
         <div className="dash-score-bar">
