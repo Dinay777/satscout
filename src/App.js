@@ -24,7 +24,11 @@ import Terms from './components/Terms';
 import { identify, resetAnalytics } from './lib/analytics';
 
 function App() {
-  const [currentPage, setCurrentPage] = useState('home');
+  // Persist the active page so a real reload (or Supabase re-hydrating the tab)
+  // keeps the user where they were instead of bouncing them to home/dashboard.
+  const [currentPage, setCurrentPage] = useState(() => {
+    try { return sessionStorage.getItem('satscout_page') || 'home'; } catch (e) { return 'home'; }
+  });
   const [language, setLanguage]       = useState('en');
   const [user, setUser]               = useState(null);
   const [profile, setProfile]         = useState(null);
@@ -39,12 +43,22 @@ function App() {
       setAuthLoading(false);
     });
 
+    // Supabase fires this on tab refocus (token refresh) too. Only swap the user
+    // object when the ID actually changes — otherwise a new reference would
+    // needlessly re-run the profile fetch and yank the page around on every
+    // tab switch.
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user ?? null);
+      const nextId = session?.user?.id ?? null;
+      setUser(prev => (prev?.id === nextId ? prev : (session?.user ?? null)));
     });
 
     return () => subscription.unsubscribe();
   }, []);
+
+  // Remember the active page across reloads / tab re-hydration.
+  useEffect(() => {
+    try { sessionStorage.setItem('satscout_page', currentPage); } catch (e) { /* ignore */ }
+  }, [currentPage]);
 
   // ── Tie analytics events to the (anonymous UUID) user, reset on logout ──
   useEffect(() => {
@@ -74,7 +88,6 @@ function App() {
           }
         }
         setProfile(data ?? null);
-        if (data) setCurrentPage('dashboard');
         setProfileLoading(false);
       })
       .catch(() => setProfileLoading(false));
