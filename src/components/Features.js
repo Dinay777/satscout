@@ -36,7 +36,7 @@ const ICONS = {
 const text = {
   en: {
     sectionLabel: 'What you get',
-    sectionTitle: 'Everything you need to ace the SAT',
+    sectionTitle: 'Four tools, zero fluff',
     features: [
       {
         iconKey: 'book',
@@ -74,7 +74,7 @@ const text = {
   },
   ru: {
     sectionLabel: 'Что внутри',
-    sectionTitle: 'Всё, что нужно для подготовки к SAT',
+    sectionTitle: 'Четыре инструмента, без воды',
     features: [
       {
         iconKey: 'book',

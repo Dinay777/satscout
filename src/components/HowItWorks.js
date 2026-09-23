@@ -4,7 +4,7 @@ import { useScrollReveal } from '../lib/useScrollReveal';
 const text = {
   en: {
     label: 'How it works',
-    title: 'From confused to confident in 3 steps',
+    title: 'Three steps, from lost to ready',
     steps: [
       {
         number: '01',
@@ -21,14 +21,14 @@ const text = {
       {
         number: '03',
         title: 'Crush the SAT',
-        description: 'Follow your personalized plan, track your progress, and walk into test day knowing you\'re ready. It\'s that simple.',
+        description: 'Follow your plan, check off tasks, and show up on test day actually ready — not just hoping.',
         color: 'green'
       }
     ]
   },
   ru: {
     label: 'Как это работает',
-    title: 'От растерянности к уверенности за 3 шага',
+    title: 'Три шага: от растерянности до готовности',
     steps: [
       {
         number: '01',
@@ -45,7 +45,7 @@ const text = {
       {
         number: '03',
         title: 'Сдай SAT на отлично',
-        description: 'Следуй персональному плану, отслеживай прогресс и приходи на экзамен с уверенностью. Всё просто.',
+        description: 'Следуй плану, отмечай задачи и приходи на экзамен по-настоящему готовым — а не на удачу.',
         color: 'green'
       }
     ]

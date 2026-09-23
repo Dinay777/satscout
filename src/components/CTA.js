@@ -2,14 +2,14 @@ import React from 'react';
 
 const text = {
   en: {
-    title: 'Ready to start your SAT journey?',
-    subtitle: 'Prep smarter, not harder — free, no credit card, no $200 course.',
+    title: 'Stop juggling ten tabs. Start a real plan.',
+    subtitle: "It's free — no card, no $200 course, no catch.",
     cta1: 'Explore Resources',
     cta2: 'Talk to AI Buddy',
   },
   ru: {
-    title: 'Готов начать подготовку к SAT?',
-    subtitle: 'Готовься умнее, а не тяжелее — бесплатно, без карты и курсов за 200$.',
+    title: 'Хватит жонглировать десятью вкладками. Начни нормальный план.',
+    subtitle: 'Это бесплатно — без карты, без курса за 200$, без подвоха.',
     cta1: 'Смотреть ресурсы',
     cta2: 'Спросить AI',
   }
