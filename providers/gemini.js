@@ -7,7 +7,7 @@ class GeminiProvider extends BaseProvider {
     this.ai = new GoogleGenAI({ apiKey });
   }
 
-  stream(messages, systemPrompt, { onChunk, onDone, onError, signal }) {
+  stream(messages, systemPrompt, { image, onChunk, onDone, onError, signal }) {
     const model = process.env.GEMINI_MODEL || 'gemini-2.5-flash';
 
     // @google/genai uses 'user'/'model' roles
@@ -15,6 +15,16 @@ class GeminiProvider extends BaseProvider {
       role: m.role === 'assistant' ? 'model' : 'user',
       parts: [{ text: m.content }],
     }));
+
+    // Attach a photo (if any) to the most recent user turn
+    if (image && image.data) {
+      for (let i = contents.length - 1; i >= 0; i--) {
+        if (contents[i].role === 'user') {
+          contents[i].parts.push({ inlineData: { mimeType: image.mimeType, data: image.data } });
+          break;
+        }
+      }
+    }
 
     const run = async () => {
       const stream = await this.ai.models.generateContentStream({

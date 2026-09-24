@@ -21,6 +21,8 @@ const text = {
     ],
     disclaimer: "I get things wrong sometimes — double-check anything that matters.",
     loadingHistory: 'Loading your conversation history...',
+    attach: 'Attach a photo',
+    removeImage: 'Remove image',
   },
   ru: {
     title: 'AI Помощник SAT',
@@ -37,6 +39,8 @@ const text = {
     ],
     disclaimer: 'Я иногда ошибаюсь — важное перепроверяй.',
     loadingHistory: 'Загружаю историю переписки...',
+    attach: 'Прикрепить фото',
+    removeImage: 'Убрать фото',
   },
 };
 
@@ -95,6 +99,8 @@ function AIChatBuddy({ language, user, profile, onProfileUpdate, setCurrentPage,
 
   const [messages, setMessages] = useState([welcomeMessage]);
   const [input, setInput] = useState('');
+  const [attachedImage, setAttachedImage] = useState(null); // { dataUrl, mimeType, data }
+  const fileInputRef = useRef(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isStreaming, setIsStreaming] = useState(false);
   const [historyLoading, setHistoryLoading] = useState(!!user);
@@ -214,19 +220,54 @@ function AIChatBuddy({ language, user, profile, onProfileUpdate, setCurrentPage,
     await supabase.from('chat_messages').insert({ user_id: user.id, role, content });
   }, [user]);
 
+  // ── Image attach: downscale client-side so phone photos stay small ─────────
+  const MAX_IMG_DIM = 1024;
+  const downscaleImage = (file) => new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    const img = new Image();
+    reader.onload = () => { img.src = reader.result; };
+    reader.onerror = reject;
+    img.onerror = reject;
+    img.onload = () => {
+      let { width, height } = img;
+      if (Math.max(width, height) > MAX_IMG_DIM) {
+        const scale = MAX_IMG_DIM / Math.max(width, height);
+        width = Math.round(width * scale);
+        height = Math.round(height * scale);
+      }
+      const canvas = document.createElement('canvas');
+      canvas.width = width; canvas.height = height;
+      canvas.getContext('2d').drawImage(img, 0, 0, width, height);
+      const dataUrl = canvas.toDataURL('image/jpeg', 0.8);
+      resolve({ dataUrl, mimeType: 'image/jpeg', data: dataUrl.split(',')[1] });
+    };
+    reader.readAsDataURL(file);
+  });
+
+  const handleImageSelect = async (e) => {
+    const file = e.target.files?.[0];
+    e.target.value = ''; // let the same file be picked again later
+    if (!file || !file.type.startsWith('image/')) return;
+    try { setAttachedImage(await downscaleImage(file)); } catch (err) { /* ignore bad image */ }
+  };
+
   // ── Send message ──────────────────────────────────────────────────────────
   const sendMessage = async (messageText) => {
-    const userText = messageText || input.trim();
-    if (!userText || isLoading) return;
+    const image = attachedImage;
+    const typed = messageText || input.trim();
+    // With an image but no text, send a sensible default prompt.
+    const userText = typed || (image ? (language === 'ru' ? 'Помоги с этим заданием на фото.' : 'Help me with the question in this image.') : '');
+    if ((!userText && !image) || isLoading) return;
 
-    const userMessage = { role: 'user', content: userText };
+    const userMessage = { role: 'user', content: userText, image: image?.dataUrl };
     const updatedMessages = [...messages, userMessage];
     setMessages(updatedMessages);
     setInput('');
+    setAttachedImage(null);
     setIsLoading(true);
 
-    // Save user message to Supabase immediately
-    saveMessage('user', userText);
+    // Save user message to Supabase immediately (mark that a photo was attached)
+    saveMessage('user', image ? `${userText}\n[📷 image]` : userText);
 
     // Skip welcome message (index 0) — UI only, not sent to AI
     const apiMessages = updatedMessages.slice(1).map(({ role, content }) => ({ role, content }));
@@ -276,7 +317,7 @@ function AIChatBuddy({ language, user, profile, onProfileUpdate, setCurrentPage,
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${session.access_token}`,
         },
-        body: JSON.stringify({ messages: apiMessages, language, profile, taskStats }),
+        body: JSON.stringify({ messages: apiMessages, language, profile, taskStats, image: image ? { data: image.data, mimeType: image.mimeType } : null }),
         signal: controller.signal,
       });
 
@@ -490,6 +531,9 @@ function AIChatBuddy({ language, user, profile, onProfileUpdate, setCurrentPage,
                         <div className="chat-message__avatar">🤖</div>
                       )}
                       <div className={`chat-message__bubble${isLastAssistant ? ' chat-message__bubble--streaming' : ''}`}>
+                        {msg.image && (
+                          <img src={msg.image} alt="attachment" className="chat-message__image" />
+                        )}
                         {isLastAssistant && !msg.content ? (
                           <div className="chat-typing"><span></span><span></span><span></span></div>
                         ) : (
@@ -581,7 +625,35 @@ function AIChatBuddy({ language, user, profile, onProfileUpdate, setCurrentPage,
             <p className="chat-disclaimer">
               {t.disclaimer}
             </p>
+            {attachedImage && (
+              <div className="chat-attach-preview">
+                <img src={attachedImage.dataUrl} alt="attachment preview" />
+                <button
+                  type="button"
+                  className="chat-attach-preview__remove"
+                  onClick={() => setAttachedImage(null)}
+                  aria-label={t.removeImage}
+                >×</button>
+              </div>
+            )}
             <div className="chat-input-wrapper">
+              <input
+                type="file"
+                accept="image/*"
+                ref={fileInputRef}
+                onChange={handleImageSelect}
+                style={{ display: 'none' }}
+              />
+              <button
+                type="button"
+                className="chat-attach"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={isLoading || historyLoading || !user}
+                aria-label={t.attach}
+                title={t.attach}
+              >
+                📎
+              </button>
               <textarea
                 className="chat-input"
                 value={input}
@@ -592,9 +664,9 @@ function AIChatBuddy({ language, user, profile, onProfileUpdate, setCurrentPage,
                 disabled={historyLoading}
               />
               <button
-                className={`chat-send ${input.trim() ? 'chat-send--active' : ''}`}
+                className={`chat-send ${(input.trim() || attachedImage) ? 'chat-send--active' : ''}`}
                 onClick={() => sendMessage()}
-                disabled={!input.trim() || isLoading || historyLoading || !user}
+                disabled={(!input.trim() && !attachedImage) || isLoading || historyLoading || !user}
               >
                 {t.send}
               </button>

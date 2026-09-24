@@ -30,7 +30,7 @@ app.use(cors({
   },
   methods: ['GET', 'POST'],
 }));
-app.use(express.json({ limit: '20kb' }));
+app.use(express.json({ limit: '6mb' })); // room for a downscaled base64 photo attachment
 
 // ── Provider & Queue ─────────────────────────────────────────────────────────
 // Switch providers via PROVIDER env var: claude-cli | gemini | openrouter
@@ -323,7 +323,16 @@ app.post('/api/chat', authGuard, rateLimiter, concurrencyGuard(queue), async (re
   const { messages, taskStats } = req.body;
   const language = req.body.language === 'ru' ? 'ru' : 'en';
   const profile = sanitizeProfile(req.body.profile);
-  console.log('[chat] userId:', req.user?.id, '| lang:', language);
+
+  // Optional photo attachment (base64, already downscaled client-side)
+  const rawImg = req.body.image;
+  const image = (rawImg && typeof rawImg.data === 'string' && rawImg.data.length > 0
+    && rawImg.data.length < 8_000_000
+    && typeof rawImg.mimeType === 'string' && rawImg.mimeType.startsWith('image/'))
+    ? { data: rawImg.data, mimeType: rawImg.mimeType }
+    : null;
+
+  console.log('[chat] userId:', req.user?.id, '| lang:', language, image ? '| +image' : '');
 
   if (!validateMessages(messages)) {
     return res.status(400).json({ error: 'Invalid messages format' });
@@ -367,6 +376,7 @@ CRITICAL: Do NOT switch to Russian just because most of these instructions are w
 `;
         const systemPrompt = langDirective + SYSTEM_PROMPT + formatStudentContext(profile, taskStats);
         provider.stream(messages, systemPrompt, {
+          image,
           onChunk: (text) => {
             fullResponse += text;
             process.stdout.write(text);

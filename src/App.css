@@ -1522,6 +1522,72 @@ button {
   transform: scale(1.05);
 }
 
+/* Photo attach in chat */
+.chat-attach {
+  width: 40px;
+  height: 40px;
+  min-width: 40px;
+  border-radius: 10px;
+  background: var(--gray-200);
+  color: var(--gray-500);
+  font-size: 1.15rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: var(--transition);
+}
+
+.chat-attach:hover:not(:disabled) {
+  background: var(--gray-300);
+  color: var(--navy);
+}
+
+.chat-attach:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.chat-attach-preview {
+  position: relative;
+  display: inline-block;
+  margin-bottom: 10px;
+}
+
+.chat-attach-preview img {
+  max-height: 96px;
+  max-width: 160px;
+  border-radius: 10px;
+  border: 1px solid var(--gray-200);
+  display: block;
+  object-fit: cover;
+}
+
+.chat-attach-preview__remove {
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--navy);
+  color: white;
+  font-size: 0.95rem;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.25);
+}
+
+.chat-message__image {
+  max-width: 240px;
+  max-height: 240px;
+  border-radius: 10px;
+  margin-bottom: 8px;
+  display: block;
+  object-fit: cover;
+}
+
 /* ============ SUMMER PROGRAMS (new) ============ */
 .programs-page {
   padding-top: 72px;
