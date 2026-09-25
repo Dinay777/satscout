@@ -16,22 +16,22 @@ npm test           # run tests
 SATScout is a free AI-powered SAT prep platform. Students enter their score, target, and exam date → AI builds a personalized week-by-week study plan from curated free resources → they follow the plan, track progress, and use the AI buddy 24/7.
 
 **Slogan**: "Less guessing. More scoring."
-**Domain**: satscout.org (not yet connected to Vercel)
+**Domain**: satscout.org (live on Vercel)
 **GitHub**: https://github.com/Dinay777/satscout
 **Target audience**: High school students, especially Russian-speaking (CIS/Europe/USA)
 
 ## Current Deployment State
 
-- **Frontend**: Deployed on Vercel (auto-deploys from main branch)
-- **Backend**: Node.js/Express (`server.js`), currently running locally via Cloudflare tunnel. **Migrating to Hetzner VPS** (in progress as of June 2026).
+- **Frontend**: Deployed on Vercel (auto-deploys from main branch), live at satscout.org
+- **Backend**: Node.js/Express (`server.js`) on **Railway**, auto-deploys from GitHub main. Live at `https://satscout-production.up.railway.app`. Frontend reaches it via the `REACT_APP_API_URL` Vercel env var. (`api.satscout.org` is unused.)
 - **Database/Auth**: Supabase (connected and working)
-- **satscout.org**: domain exists, not yet connected to Vercel
+- **satscout.org**: live and served by Vercel
 
 ## What Is Already Built and Working
 
 - Landing page: Hero, Features, HowItWorks, SocialProof, PhotoGallery, CTA, Footer
 - Resource Library: search + filters, curated resources from `src/data/resources.js`
-- AI Study Buddy: real Claude (via CLI), SSE streaming, chat history saved to Supabase `chat_messages`
+- AI Study Buddy: Gemini (active provider), SSE streaming, chat history saved to Supabase `chat_messages`, photo uploads (attach an image of a question → Gemini vision reads it)
 - Supabase Auth: email registration/login
 - Onboarding quiz: collects score, target, exam date, weak sections, study hours
 - Dashboard: personalized task list + week strip navigation, tasks stored in Supabase `user_tasks`
@@ -44,8 +44,7 @@ SATScout is a free AI-powered SAT prep platform. Students enter their score, tar
 ## What Is Hidden / Not Done
 
 - `SummerPrograms.js` — component exists, intentionally hidden from nav (for later)
-- satscout.org domain — not connected yet
-- Hetzner VPS backend hosting — in progress
+- PostHog analytics — wired in code, dormant until `REACT_APP_POSTHOG_KEY` is set in Vercel env
 
 ## Architecture
 
@@ -63,8 +62,8 @@ SATScout is a free AI-powered SAT prep platform. Students enter their score, tar
 ### Backend (`server.js`)
 - Express on port 3001
 - SSE streaming for AI chat responses
-- **Provider switching** via `PROVIDER` env var: `claude-cli` (default) | `gemini` | `openrouter`
-- `MAX_CONCURRENT=5` — max parallel Claude CLI processes
+- **Provider switching** via `PROVIDER` env var: `claude-cli` (code default) | `gemini` | `openrouter`. **Production runs `gemini`** (set via Railway env).
+- `MAX_CONCURRENT=5` — max parallel in-flight AI requests
 - `ALLOWED_ORIGINS` env var controls CORS (comma-separated)
 - Rate limiting: `middleware/rateLimiter.js`
 - Concurrency guard: `middleware/concurrency.js`
@@ -72,9 +71,9 @@ SATScout is a free AI-powered SAT prep platform. Students enter their score, tar
 - PM2 config: `ecosystem.config.js`
 
 ### AI Provider Abstraction
-All providers implement `stream(messages, systemPrompt, { onChunk, onDone, onError, signal })`:
+All providers implement `stream(messages, systemPrompt, { image, onChunk, onDone, onError, signal })` (`image` is an optional `{ data, mimeType }` photo attachment):
 - `providers/claude-cli.js` — spawns `claude` binary via `child_process.spawn`. Uses `CLAUDE_BINARY` env var (default: `claude`). NOT active.
-- `providers/gemini.js` — Gemini streaming via `@google/generative-ai`. **Active provider.**
+- `providers/gemini.js` — Gemini streaming via `@google/genai` (`GoogleGenAI`). Attaches `image` as `inlineData` to the latest user turn for vision. **Active provider.**
 - `providers/openrouter.js` — OpenRouter streaming via fetch. Ready, not active.
 
 To switch provider: change `PROVIDER` env var and restart server. No frontend changes needed.
@@ -111,6 +110,7 @@ src/
 public/
   images/
     sat-book.jpg          — local photo used in HowItWorks + PhotoGallery
+    about-photo.jpg       — founder photo shown on the About page
 ```
 
 ### Key Backend Files
@@ -119,9 +119,9 @@ server.js               — Express app, routes, SSE, PLAN_UPDATE parsing
 ecosystem.config.js     — PM2 config (1 instance, fork mode)
 providers/
   base.js               — BaseProvider class
-  claude-cli.js         — active AI provider
-  gemini.js             — ready for future use
-  openrouter.js         — ready for future use
+  claude-cli.js         — inactive (spawns claude binary)
+  gemini.js             — active AI provider (vision-capable)
+  openrouter.js         — ready, not active
 middleware/
   rateLimiter.js
   concurrency.js
@@ -132,21 +132,24 @@ queue/
 ## Environment Variables
 
 ```env
-# Backend (.env — not in git)
+# Backend (Railway env vars — not in git)
 NODE_ENV=production
 PORT=3001
-ANTHROPIC_API_KEY=...
-CLAUDE_BINARY=/path/to/claude   # find with: which claude
-CLAUDE_MODEL=haiku
-CLAUDE_TIMEOUT_MS=90000
+PROVIDER=gemini                 # production value | options: claude-cli | gemini | openrouter
+GEMINI_API_KEY=...              # required for the active (gemini) provider
+GEMINI_MODEL=gemini-2.5-flash   # optional, this is the default
 MAX_CONCURRENT=5
 SUPABASE_URL=...
 SUPABASE_SERVICE_ROLE_KEY=...
 ALLOWED_ORIGINS=https://satscout.org,https://satscout.vercel.app
-PROVIDER=claude-cli             # claude-cli | gemini | openrouter
+
+# Only if switching to the (inactive) Claude/OpenRouter providers:
+# ANTHROPIC_API_KEY=... / CLAUDE_BINARY=... / CLAUDE_MODEL=haiku / CLAUDE_TIMEOUT_MS=90000
+# OPENROUTER_API_KEY=...
 
 # Frontend (Vercel env vars)
-REACT_APP_API_URL=https://api.satscout.org   # backend URL
+REACT_APP_API_URL=https://satscout-production.up.railway.app   # backend URL
+REACT_APP_POSTHOG_KEY=...       # analytics; dormant until set
 ```
 
 ## Design Principles
